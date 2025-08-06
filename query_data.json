@@ -1,0 +1,682 @@
+[
+  {
+    "page": 1,
+    "bbox": [
+      67.0199966430664,
+      91.24497985839844,
+      530.9794921875,
+      203.75167846679688
+    ],
+    "font": "TimesNewRomanPSMT",
+    "size": 10.979999542236328,
+    "color": 0,
+    "lines": [
+      {
+        "text": "Air Ambulance Cover",
+        "y": 115.75679779052734
+      },
+      {
+        "text": "In consideration of the payment of additional premium to Us, We will cover the expenses incurred on air",
+        "y": 141.01681518554688
+      },
+      {
+        "text": "ambulance services in respect of an Insured Person which are offered by a healthcare or an air",
+        "y": 153.67678833007812
+      },
+      {
+        "text": "ambulance service provider and which have been used during the Policy Period to transfer the Insured",
+        "y": 166.33682250976562
+      },
+      {
+        "text": "Person to a Hospital or transfer from one hospital to another with adequate emergency facilities for the",
+        "y": 178.99679565429688
+      },
+      {
+        "text": "provision of Emergency Care, provided that:",
+        "y": 191.59683227539062
+      }
+    ],
+    "text": "Air Ambulance Cover  \nIn consideration of the payment of additional premium to Us, We will cover the expenses incurred on air \nambulance services in respect of an Insured Person which are offered by a healthcare or an air \nambulance service provider and which have been used during the Policy Period to transfer the Insured \nPerson to a Hospital or transfer from one hospital to another with adequate emergency facilities for the \nprovision of Emergency Care, provided that:",
+    "y_position": 91.24497985839844,
+    "is_header": false,
+    "header": "[Well Baby Well Mother- Add On Wordings]",
+    "header_level": 1,
+    "direct_header": "[Well Baby Well Mother- Add On Wordings]",
+    "coverage_analysis": {
+      "flags": [
+        {
+          "type": "INCLUSION",
+          "priority": 10,
+          "matches": [
+            "will cover"
+          ],
+          "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+        },
+        {
+          "type": "INCLUSION",
+          "priority": 9,
+          "matches": [
+            "payment"
+          ],
+          "pattern": "\\b(shall pay|we pay|payment|compensation)\\b"
+        },
+        {
+          "type": "CONDITION",
+          "priority": 7,
+          "matches": [
+            "provided"
+          ],
+          "pattern": "\\b(provided|subject to)\\b"
+        },
+        {
+          "type": "EXCEPTION",
+          "priority": 8,
+          "matches": [
+            "provided that"
+          ],
+          "pattern": "\\b(except|excepting|other than|but not|however|provided that)\\b"
+        },
+        {
+          "type": "EMERGENCY",
+          "priority": 8,
+          "matches": [
+            "ambulance",
+            "ambulance",
+            "ambulance",
+            "emergency",
+            "emergency"
+          ],
+          "pattern": "\\b(emergency|ambulance|hospitalization)\\b"
+        }
+      ],
+      "max_priority": 10,
+      "primary_classification": "INCLUSION",
+      "has_coverage_keywords": true
+    },
+    "coverage_flags": [
+      {
+        "type": "INCLUSION",
+        "priority": 10,
+        "matches": [
+          "will cover"
+        ],
+        "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+      },
+      {
+        "type": "INCLUSION",
+        "priority": 9,
+        "matches": [
+          "payment"
+        ],
+        "pattern": "\\b(shall pay|we pay|payment|compensation)\\b"
+      },
+      {
+        "type": "CONDITION",
+        "priority": 7,
+        "matches": [
+          "provided"
+        ],
+        "pattern": "\\b(provided|subject to)\\b"
+      },
+      {
+        "type": "EXCEPTION",
+        "priority": 8,
+        "matches": [
+          "provided that"
+        ],
+        "pattern": "\\b(except|excepting|other than|but not|however|provided that)\\b"
+      },
+      {
+        "type": "EMERGENCY",
+        "priority": 8,
+        "matches": [
+          "ambulance",
+          "ambulance",
+          "ambulance",
+          "emergency",
+          "emergency"
+        ],
+        "pattern": "\\b(emergency|ambulance|hospitalization)\\b"
+      }
+    ],
+    "coverage_priority": 10,
+    "coverage_classification": "INCLUSION",
+    "flagged_text": "[COVERS] [HIGH PRIORITY]\nAir Ambulance Cover  \nIn consideration of the payment of additional premium to Us, We will cover the expenses incurred on air \nambulance services in respect of an Insured Person which are offered by a healthcare or an air \nambulance service provider and which have been used during the Policy Period to transfer the Insured \nPerson to a Hospital or transfer from one hospital to another with adequate emergency facilities for the \nprovision of Emergency Care, provided that:"
+  },
+  {
+    "page": 1,
+    "bbox": [
+      85.0199966430664,
+      204.1030731201172,
+      515.8036499023438,
+      271.0116271972656
+    ],
+    "font": "TimesNewRomanPSMT",
+    "size": 10.979999542236328,
+    "color": 0,
+    "lines": [
+      {
+        "text": "i.",
+        "y": 204.1030731201172
+      },
+      {
+        "text": "Our maximum liability under this Benefit for any and all claims arising during the Policy",
+        "y": 204.25680541992188
+      },
+      {
+        "text": "Year will be restricted to the Sum insured as stated in the Policy Schedule;",
+        "y": 217.93679809570312
+      },
+      {
+        "text": "ii.",
+        "y": 231.40306091308594
+      },
+      {
+        "text": "The maximum distance of travel undertaken is 150 kms. In case of distance travelled is",
+        "y": 231.55679321289062
+      },
+      {
+        "text": "more than 150 kms, proportionate amount of expenses upto 150 kms shall be payable.",
+        "y": 245.23678588867188
+      }
+    ],
+    "text": "i. \nOur maximum liability under this Benefit for any and all claims arising during the Policy \nYear will be restricted to the Sum insured as stated in the Policy Schedule;  \nii. \nThe maximum distance of travel undertaken is 150 kms. In case of distance travelled is \nmore than 150 kms, proportionate amount of expenses upto 150 kms shall be payable.",
+    "y_position": 204.1030731201172,
+    "is_header": false,
+    "header": "[Well Baby Well Mother- Add On Wordings]",
+    "header_level": 1,
+    "direct_header": "[Well Baby Well Mother- Add On Wordings]",
+    "coverage_analysis": {
+      "flags": [
+        {
+          "type": "INCLUSION",
+          "priority": 10,
+          "matches": [
+            "payable"
+          ],
+          "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+        },
+        {
+          "type": "INCLUSION",
+          "priority": 8,
+          "matches": [
+            "benefit"
+          ],
+          "pattern": "\\b(eligible|entitled|applicable|includes?|benefits?)\\b"
+        }
+      ],
+      "max_priority": 10,
+      "primary_classification": "INCLUSION",
+      "has_coverage_keywords": true
+    },
+    "coverage_flags": [
+      {
+        "type": "INCLUSION",
+        "priority": 10,
+        "matches": [
+          "payable"
+        ],
+        "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+      },
+      {
+        "type": "INCLUSION",
+        "priority": 8,
+        "matches": [
+          "benefit"
+        ],
+        "pattern": "\\b(eligible|entitled|applicable|includes?|benefits?)\\b"
+      }
+    ],
+    "coverage_priority": 10,
+    "coverage_classification": "INCLUSION",
+    "flagged_text": "[COVERS] [HIGH PRIORITY]\ni. \nOur maximum liability under this Benefit for any and all claims arising during the Policy \nYear will be restricted to the Sum insured as stated in the Policy Schedule;  \nii. \nThe maximum distance of travel undertaken is 150 kms. In case of distance travelled is \nmore than 150 kms, proportionate amount of expenses upto 150 kms shall be payable."
+  },
+  {
+    "page": 1,
+    "bbox": [
+      121.04000091552734,
+      545.5567626953125,
+      522.7445068359375,
+      625.9317016601562
+    ],
+    "font": "TimesNewRomanPSMT",
+    "size": 10.979999542236328,
+    "color": 0,
+    "lines": [
+      {
+        "text": "of India.",
+        "y": 545.5567626953125
+      },
+      {
+        "text": "d. Attempt at suicide",
+        "y": 559.0230712890625
+      },
+      {
+        "text": "e. Injuries resulting from participation in acts of war or insurrection",
+        "y": 572.703125
+      },
+      {
+        "text": "f. commission of unlawful acts",
+        "y": 586.3231201171875
+      },
+      {
+        "text": "g. Incidents involving use of drugs unless prescribed by a medical practitioner",
+        "y": 600.0031127929688
+      },
+      {
+        "text": "h. We have accepted a claim under Section II.A.1 in respect of the Insured Person for the",
+        "y": 613.6231079101562
+      }
+    ],
+    "text": "of India.  \nd. Attempt at suicide \ne. Injuries resulting from participation in acts of war or insurrection \nf. commission of unlawful acts \ng. Incidents involving use of drugs unless prescribed by a medical practitioner \nh. We have accepted a claim under Section II.A.1 in respect of the Insured Person for the",
+    "y_position": 545.5567626953125,
+    "is_header": false,
+    "header": "[Well Baby Well Mother- Add On Wordings]",
+    "header_level": 1,
+    "direct_header": "[Well Baby Well Mother- Add On Wordings]",
+    "coverage_analysis": {
+      "flags": [
+        {
+          "type": "SUICIDE_RELATED",
+          "priority": 10,
+          "matches": [
+            "suicide"
+          ],
+          "pattern": "\\b(suicide|self-?harm|self-?inflicted)\\b"
+        },
+        {
+          "type": "WAR_RELATED",
+          "priority": 8,
+          "matches": [
+            "war"
+          ],
+          "pattern": "\\b(war|terrorism|nuclear|riot)\\b"
+        },
+        {
+          "type": "CLAIMS",
+          "priority": 7,
+          "matches": [
+            "claim"
+          ],
+          "pattern": "\\b(claim|claims process|documentation)\\b"
+        }
+      ],
+      "max_priority": 10,
+      "primary_classification": "SUICIDE_RELATED",
+      "has_coverage_keywords": true
+    },
+    "coverage_flags": [
+      {
+        "type": "SUICIDE_RELATED",
+        "priority": 10,
+        "matches": [
+          "suicide"
+        ],
+        "pattern": "\\b(suicide|self-?harm|self-?inflicted)\\b"
+      },
+      {
+        "type": "WAR_RELATED",
+        "priority": 8,
+        "matches": [
+          "war"
+        ],
+        "pattern": "\\b(war|terrorism|nuclear|riot)\\b"
+      },
+      {
+        "type": "CLAIMS",
+        "priority": 7,
+        "matches": [
+          "claim"
+        ],
+        "pattern": "\\b(claim|claims process|documentation)\\b"
+      }
+    ],
+    "coverage_priority": 10,
+    "coverage_classification": "SUICIDE_RELATED",
+    "flagged_text": "[SUICIDE] [HIGH PRIORITY]\nof India.  \nd. Attempt at suicide \ne. Injuries resulting from participation in acts of war or insurrection \nf. commission of unlawful acts \ng. Incidents involving use of drugs unless prescribed by a medical practitioner \nh. We have accepted a claim under Section II.A.1 in respect of the Insured Person for the"
+  },
+  {
+    "page": 2,
+    "bbox": [
+      67.0199966430664,
+      89.4568099975586,
+      532.2169189453125,
+      152.21163940429688
+    ],
+    "font": "TimesNewRomanPSMT",
+    "size": 10.979999542236328,
+    "color": 0,
+    "lines": [
+      {
+        "text": "Well mother Cover",
+        "y": 89.4568099975586
+      },
+      {
+        "text": "Covers routine medical care provided to an insured female (expectant mothers and mothers who have",
+        "y": 102.11678314208984
+      },
+      {
+        "text": "delivered new born baby), which includes routine preventive care services and immunizations (within the",
+        "y": 114.77681732177734
+      },
+      {
+        "text": "maternity hospitalization period), during the period as opted by insured and specified in the policy",
+        "y": 127.4568099975586
+      },
+      {
+        "text": "schedule",
+        "y": 140.05679321289062
+      }
+    ],
+    "text": "Well mother Cover  \nCovers routine medical care provided to an insured female (expectant mothers and mothers who have \ndelivered new born baby), which includes routine preventive care services and immunizations (within the \nmaternity hospitalization period), during the period as opted by insured and specified in the policy \nschedule",
+    "y_position": 89.4568099975586,
+    "is_header": false,
+    "header": "[Well Baby Well Mother- Add On Wordings]",
+    "header_level": 1,
+    "direct_header": "[Well Baby Well Mother- Add On Wordings]",
+    "coverage_analysis": {
+      "flags": [
+        {
+          "type": "INCLUSION",
+          "priority": 10,
+          "matches": [
+            "covers"
+          ],
+          "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+        },
+        {
+          "type": "INCLUSION",
+          "priority": 8,
+          "matches": [
+            "includes"
+          ],
+          "pattern": "\\b(eligible|entitled|applicable|includes?|benefits?)\\b"
+        },
+        {
+          "type": "CONDITION",
+          "priority": 7,
+          "matches": [
+            "provided"
+          ],
+          "pattern": "\\b(provided|subject to)\\b"
+        },
+        {
+          "type": "MATERNITY",
+          "priority": 8,
+          "matches": [
+            "maternity"
+          ],
+          "pattern": "\\b(maternity|pregnancy|childbirth|delivery)\\b"
+        },
+        {
+          "type": "EMERGENCY",
+          "priority": 8,
+          "matches": [
+            "hospitalization"
+          ],
+          "pattern": "\\b(emergency|ambulance|hospitalization)\\b"
+        }
+      ],
+      "max_priority": 10,
+      "primary_classification": "INCLUSION",
+      "has_coverage_keywords": true
+    },
+    "coverage_flags": [
+      {
+        "type": "INCLUSION",
+        "priority": 10,
+        "matches": [
+          "covers"
+        ],
+        "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+      },
+      {
+        "type": "INCLUSION",
+        "priority": 8,
+        "matches": [
+          "includes"
+        ],
+        "pattern": "\\b(eligible|entitled|applicable|includes?|benefits?)\\b"
+      },
+      {
+        "type": "CONDITION",
+        "priority": 7,
+        "matches": [
+          "provided"
+        ],
+        "pattern": "\\b(provided|subject to)\\b"
+      },
+      {
+        "type": "MATERNITY",
+        "priority": 8,
+        "matches": [
+          "maternity"
+        ],
+        "pattern": "\\b(maternity|pregnancy|childbirth|delivery)\\b"
+      },
+      {
+        "type": "EMERGENCY",
+        "priority": 8,
+        "matches": [
+          "hospitalization"
+        ],
+        "pattern": "\\b(emergency|ambulance|hospitalization)\\b"
+      }
+    ],
+    "coverage_priority": 10,
+    "coverage_classification": "INCLUSION",
+    "flagged_text": "[COVERS] [HIGH PRIORITY]\nWell mother Cover  \nCovers routine medical care provided to an insured female (expectant mothers and mothers who have \ndelivered new born baby), which includes routine preventive care services and immunizations (within the \nmaternity hospitalization period), during the period as opted by insured and specified in the policy \nschedule"
+  },
+  {
+    "page": 2,
+    "bbox": [
+      85.0199966430664,
+      305.3231201171875,
+      514.1650390625,
+      331.2516784667969
+    ],
+    "font": "TimesNewRomanPSMT",
+    "size": 10.979999542236328,
+    "color": 0,
+    "lines": [
+      {
+        "text": "1. Any infertility treatments",
+        "y": 305.3231201171875
+      },
+      {
+        "text": "2. Any charges payable under the maternity section (if opted as an optional cover) of the policy",
+        "y": 318.943115234375
+      }
+    ],
+    "text": "1. Any infertility treatments \n2. Any charges payable under the maternity section (if opted as an optional cover) of the policy",
+    "y_position": 305.3231201171875,
+    "is_header": false,
+    "header": "[Well Baby Well Mother- Add On Wordings]",
+    "header_level": 1,
+    "direct_header": "[Well Baby Well Mother- Add On Wordings]",
+    "coverage_analysis": {
+      "flags": [
+        {
+          "type": "INCLUSION",
+          "priority": 10,
+          "matches": [
+            "payable"
+          ],
+          "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+        },
+        {
+          "type": "MATERNITY",
+          "priority": 8,
+          "matches": [
+            "maternity"
+          ],
+          "pattern": "\\b(maternity|pregnancy|childbirth|delivery)\\b"
+        }
+      ],
+      "max_priority": 10,
+      "primary_classification": "INCLUSION",
+      "has_coverage_keywords": true
+    },
+    "coverage_flags": [
+      {
+        "type": "INCLUSION",
+        "priority": 10,
+        "matches": [
+          "payable"
+        ],
+        "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+      },
+      {
+        "type": "MATERNITY",
+        "priority": 8,
+        "matches": [
+          "maternity"
+        ],
+        "pattern": "\\b(maternity|pregnancy|childbirth|delivery)\\b"
+      }
+    ],
+    "coverage_priority": 10,
+    "coverage_classification": "INCLUSION",
+    "flagged_text": "[COVERS] [HIGH PRIORITY]\n1. Any infertility treatments \n2. Any charges payable under the maternity section (if opted as an optional cover) of the policy"
+  },
+  {
+    "page": 2,
+    "bbox": [
+      67.0199966430664,
+      340.7568054199219,
+      532.2849731445312,
+      504.7316589355469
+    ],
+    "font": "TimesNewRomanPSMT",
+    "size": 10.979999542236328,
+    "color": 0,
+    "lines": [
+      {
+        "text": "Healthy baby expenses / well baby care expenses",
+        "y": 353.41680908203125
+      },
+      {
+        "text": "Cover for expenses incurred for a New born baby after the birth until first discharge from hospital.",
+        "y": 366.0768127441406
+      },
+      {
+        "text": "Covers routine medical care provided to a new born baby, which includes limited to appropriate customary",
+        "y": 378.67681884765625
+      },
+      {
+        "text": "examinations required to assess the integrity and basic functions of child’s organs and skeletal structure",
+        "y": 391.3568115234375
+      },
+      {
+        "text": "carried out immediately following birth, routine preventive care services and immunizations (within the",
+        "y": 404.0168151855469
+      },
+      {
+        "text": "hospitalization period).",
+        "y": 416.67681884765625
+      },
+      {
+        "text": "The sum insured limit shall be as opted for and specified in the policy schedule. For multiple born babies",
+        "y": 429.3368225097656
+      },
+      {
+        "text": "sum insured shall be subject to limit in place.",
+        "y": 441.9967956542969
+      },
+      {
+        "text": "Routine Preventive Care Services will include expenses recommended by a doctor and incurred on –",
+        "y": 454.5968017578125
+      },
+      {
+        "text": "Pharmacy and Diagnostic Tests.",
+        "y": 467.2568054199219
+      }
+    ],
+    "text": "Healthy baby expenses / well baby care expenses  \nCover for expenses incurred for a New born baby after the birth until first discharge from hospital.  \nCovers routine medical care provided to a new born baby, which includes limited to appropriate customary \nexaminations required to assess the integrity and basic functions of child’s organs and skeletal structure \ncarried out immediately following birth, routine preventive care services and immunizations (within the \nhospitalization period).  \nThe sum insured limit shall be as opted for and specified in the policy schedule. For multiple born babies \nsum insured shall be subject to limit in place. \nRoutine Preventive Care Services will include expenses recommended by a doctor and incurred on – \nPharmacy and Diagnostic Tests.",
+    "y_position": 340.7568054199219,
+    "is_header": false,
+    "header": "[Well Baby Well Mother- Add On Wordings]",
+    "header_level": 1,
+    "direct_header": "[Well Baby Well Mother- Add On Wordings]",
+    "coverage_analysis": {
+      "flags": [
+        {
+          "type": "INCLUSION",
+          "priority": 10,
+          "matches": [
+            "covers"
+          ],
+          "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+        },
+        {
+          "type": "INCLUSION",
+          "priority": 8,
+          "matches": [
+            "includes",
+            "include"
+          ],
+          "pattern": "\\b(eligible|entitled|applicable|includes?|benefits?)\\b"
+        },
+        {
+          "type": "CONDITION",
+          "priority": 7,
+          "matches": [
+            "provided",
+            "subject to"
+          ],
+          "pattern": "\\b(provided|subject to)\\b"
+        },
+        {
+          "type": "EMERGENCY",
+          "priority": 8,
+          "matches": [
+            "hospitalization"
+          ],
+          "pattern": "\\b(emergency|ambulance|hospitalization)\\b"
+        }
+      ],
+      "max_priority": 10,
+      "primary_classification": "INCLUSION",
+      "has_coverage_keywords": true
+    },
+    "coverage_flags": [
+      {
+        "type": "INCLUSION",
+        "priority": 10,
+        "matches": [
+          "covers"
+        ],
+        "pattern": "\\b(will cover|covers|covered|coverage includes?|benefits? include|payable|reimbursable)\\b"
+      },
+      {
+        "type": "INCLUSION",
+        "priority": 8,
+        "matches": [
+          "includes",
+          "include"
+        ],
+        "pattern": "\\b(eligible|entitled|applicable|includes?|benefits?)\\b"
+      },
+      {
+        "type": "CONDITION",
+        "priority": 7,
+        "matches": [
+          "provided",
+          "subject to"
+        ],
+        "pattern": "\\b(provided|subject to)\\b"
+      },
+      {
+        "type": "EMERGENCY",
+        "priority": 8,
+        "matches": [
+          "hospitalization"
+        ],
+        "pattern": "\\b(emergency|ambulance|hospitalization)\\b"
+      }
+    ],
+    "coverage_priority": 10,
+    "coverage_classification": "INCLUSION",
+    "flagged_text": "[COVERS] [HIGH PRIORITY]\nHealthy baby expenses / well baby care expenses  \nCover for expenses incurred for a New born baby after the birth until first discharge from hospital.  \nCovers routine medical care provided to a new born baby, which includes limited to appropriate customary \nexaminations required to assess the integrity and basic functions of child’s organs and skeletal structure \ncarried out immediately following birth, routine preventive care services and immunizations (within the \nhospitalization period).  \nThe sum insured limit shall be as opted for and specified in the policy schedule. For multiple born babies \nsum insured shall be subject to limit in place. \nRoutine Preventive Care Services will include expenses recommended by a doctor and incurred on – \nPharmacy and Diagnostic Tests."
+  }
+]

@@ -1,66 +1,208 @@
-import fitz  # PyMuPDF
-import json
+import time
 import os
-import nltk
+import json
+import sys
+from parser import extract_formatted_blocks, save_blocks_to_json
+from keyword_extractor import extract_keywords
+import requests
 
-# === Optional: Check/download NLTK tokenizer (only if you later want sentence splitting)
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
+PDF_PATH = "sample 2.pdf"
+PARAGRAPHS_FILE = "reconstructed_paragraphs.json"
+QUERY_DATA_FILE = "query_data.json"
+OLLAMA_MODEL = "llama3"
+OLLAMA_URL = "http://localhost:11434/api/generate"
 
-# === Ligature normalization map
-def normalize_ligatures(text):
-    ligature_map = {
-        "ﬁ": "fi",
-        "ﬂ": "fl",
-        "ﬀ": "ff",
-        "ﬃ": "ffi",
-        "ﬄ": "ffl",
-        "ﬅ": "ft",
-        "ﬆ": "st",
-    }
-    for lig, replacement in ligature_map.items():
-        text = text.replace(lig, replacement)
-    return text
+def step_1_extract_pdf():
+    print("STEP 1: Extract PDF Content")
+    print("-" * 30)
+    
+    if not os.path.exists(PDF_PATH):
+        print(f"PDF file not found: {PDF_PATH}")
+        return False
+    
+    try:
+        import sys
+        from io import StringIO
+        
+        old_stdout = sys.stdout
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        
+        blocks = extract_formatted_blocks(PDF_PATH)
+        save_blocks_to_json(blocks, PARAGRAPHS_FILE)
+        
+        sys.stdout = old_stdout
+        
+        output = captured_output.getvalue()
+        lines = output.split('\n')
+        
+        show_line = False
+        for line in lines:
+            if 'SUMMARY:' in line:
+                show_line = True
+            elif 'PDF content extracted successfully' in line:
+                show_line = False
+            
+            if show_line or line.startswith('HEADERS FOUND:') or line.startswith('HIGH PRIORITY COVERAGE BLOCKS:') or line.startswith('Extracted'):
+                print(line)
+        
+        print(f"PDF content extracted successfully")
+        return True
+    except Exception as e:
+        sys.stdout = old_stdout
+        print(f"Error: {e}")
+        return False
 
-# === Main extraction function
-def extract_semantic_blocks(pdf_path):
-    doc = fitz.open(pdf_path)
-    all_blocks = []
+def step_2_semantic_matching(query):
+    print("\nSTEP 2: Find Relevant Content")
+    print("-" * 30)
+    
+    if not os.path.exists(PARAGRAPHS_FILE):
+        print(f"Paragraphs file not found")
+        return False
+    
+    try:
+        with open(PARAGRAPHS_FILE, "r", encoding="utf-8") as f:
+            paragraphs = json.load(f)
+        
+        keywords = extract_keywords(query)
+        print(f"Keywords: {keywords}")
+        
+        matched_blocks = []
+        for block in paragraphs:
+            text = block["text"].lower()
+            if any(keyword in text for keyword in keywords):
+                matched_blocks.append(block)
+        
+        with open(QUERY_DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(matched_blocks, f, indent=2, ensure_ascii=False)
+        
+        print(f"Relevant content found")
+        return True
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
 
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        raw_text = page.get_text()
+def query_ollama(model: str, prompt: str):
+    try:
+        response = requests.post(OLLAMA_URL, json={
+            "model": model,
+            "prompt": prompt,
+            "stream": False
+        })
+        
+        if response.status_code == 200:
+            return response.json()["response"]
+        else:
+            print(f"Ollama error: {response.status_code}")
+            return ""
+    except requests.exceptions.ConnectionError:
+        print("Cannot connect to Ollama")
+        return ""
+    except Exception as e:
+        print(f"Error: {e}")
+        return ""
 
-        # Normalize ligatures
-        cleaned_text = normalize_ligatures(raw_text)
+def format_context_with_headers(chunks):
+    formatted_context = ""
+    current_header = None
+    
+    for block in chunks:
+        block_header = block.get("header", "").strip()
+        block_text = block.get("flagged_text", block["text"]).strip()
+        
+        if block_header and block_header != current_header:
+            current_header = block_header
+            formatted_context += f"\n{block_header}\n"
+        
+        formatted_context += f"{block_text}\n\n"
+    
+    return formatted_context.strip()
 
-        # Split by paragraph (double newlines)
-        paragraphs = [p.strip() for p in cleaned_text.split("\n\n") if p.strip()]
+def step_3_llm_query(query):
+    print("\nSTEP 3: Generate Answer")
+    print("-" * 30)
+    
+    if not os.path.exists(QUERY_DATA_FILE):
+        print(f"Query data file not found")
+        return False
+    
+    try:
+        with open(QUERY_DATA_FILE, "r", encoding="utf-8") as f:
+            chunks = json.load(f)
+        
+        if not chunks:
+            print("No matching content found")
+            return False
+        
+        chunks = chunks[:30]
+        context = format_context_with_headers(chunks)
+        
+        prompt = f"""Use the following extracted content from a policy document to answer the question. 
 
-        for segment_idx, para in enumerate(paragraphs, start=1):
-            all_blocks.append({
-                "page": page_num + 1,
-                "segment": segment_idx,
-                "text": para
-            })
+Coverage flags:
+COVERS = Inclusions/Benefits
+EXCLUDES = Exclusions/Not Covered  
+EXCEPTION/LIMITATION = Conditions/Restrictions
+CONDITION = Requirements/Conditions
+PRE-EXISTING = Pre-existing condition related
+CLAIMS = Claims process related
+HIGH PRIORITY = Very important coverage information
+MEDIUM PRIORITY = Important coverage information
 
-    return all_blocks
+### Context:
+{context}
 
-# === Save as JSON
-def save_blocks_to_json(blocks, output_file):
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(blocks, f, indent=2, ensure_ascii=False)
-    print(f"✅ Extracted {len(blocks)} blocks and saved to {output_file}")
+### Question:
+{query}
 
-# === Main runner
-if __name__ == "__main__":
-    pdf_path = "research.pdf"  # ← input PDF path
-    output_file = "semantic_blocks_with_embeddings_local.json"
+### Answer:"""
+        
+        print(f"Querying {OLLAMA_MODEL}...")
+        answer = query_ollama(OLLAMA_MODEL, prompt)
+        
+        if answer:
+            print("\n" + "=" * 40)
+            print("ANSWER:")
+            print("=" * 40)
+            print(answer)
+            return True
+        else:
+            return False
+            
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
 
-    if not os.path.exists(pdf_path):
-        print(f"❌ File not found: {pdf_path}")
+def main():
+    print("PDF RAG System - 3 Steps")
+    print("=" * 40)
+
+    start_time = time.time()
+    
+    if len(sys.argv) > 1:
+        query = " ".join(sys.argv[1:])
     else:
-        blocks = extract_semantic_blocks(pdf_path)
-        save_blocks_to_json(blocks, output_file)
+        query = "Is attempt of suicide covered in the policy?"
+    
+    print(f"Query: {query}\n")
+    
+    if not step_1_extract_pdf():
+        return
+    
+    if not step_2_semantic_matching(query):
+        return
+    
+    if not step_3_llm_query(query):
+        return
+    
+    end_time = time.time()  # End timer
+    total_time = end_time - start_time
+
+    print(f"\nPipeline completed successfully!")
+    print(f"Total execution time: {total_time:.2f} seconds")
+
+
+if __name__ == "__main__":
+    main()

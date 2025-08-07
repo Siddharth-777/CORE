@@ -6,7 +6,7 @@ import requests
 import os
 from parser import extract_formatted_blocks, save_blocks_to_json
 from keyword_extractor import extract_keywords
-from main import format_context_with_headers, query_ollama
+from main import format_context_with_headers
 import json
 
 app = FastAPI()
@@ -14,17 +14,42 @@ app = FastAPI()
 PDF_FILE = "input.pdf"
 PARAGRAPH_FILE = "reconstructed_paragraphs.json"
 QUERY_FILE = "query_data.json"
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3"
+
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")  # Set this as an env variable
+COHERE_URL = "https://api.cohere.ai/v1/chat"
+COHERE_MODEL = "command-r-plus"  # Pro model
 
 class HackRxRequest(BaseModel):
     documents: str
     questions: list[str]
 
+def query_cohere(prompt: str):
+    headers = {
+        "Authorization": f"Bearer {COHERE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": COHERE_MODEL,
+        "message": prompt,
+        "temperature": 0.3,
+        "max_tokens": 300,
+    }
+
+    response = requests.post(COHERE_URL, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        return response.json()["text"]
+    else:
+        print("Cohere Error:", response.status_code, response.text)
+        return "Error: Could not get response from Cohere"
+
 @app.post("/hackrx/run")
 async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not COHERE_API_KEY:
+        raise HTTPException(status_code=500, detail="Cohere API key not set")
 
     try:
         # Step 1: Download the document
@@ -72,8 +97,8 @@ MEDIUM PRIORITY = Important coverage information
 
 ### Answer:"""
 
-            # Step 5: Query Ollama
-            result = query_ollama(OLLAMA_MODEL, prompt)
+            # Step 5: Query Cohere instead of Ollama
+            result = query_cohere(prompt)
             answers.append(result.strip())
 
         return {"answers": answers}

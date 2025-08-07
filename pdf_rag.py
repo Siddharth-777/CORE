@@ -10,7 +10,7 @@ import cohere  # Add Cohere client
 PDF_PATH = "sample.pdf"
 PARAGRAPHS_FILE = "reconstructed_paragraphs.json"
 QUERY_DATA_FILE = "query_data.json"
-COHERE_API_KEY = "W5WiUKKjiTjDVKxAJA4wrTImgcwUQI8LlvD5T7o7"  # Replace with your Cohere API key
+COHERE_API_KEY = "apikey"  # Replace with your Cohere API key
 COHERE_MODEL = "command"  # Example Cohere model (e.g., 'command' or 'command-r')
 
 # Initialize Cohere client

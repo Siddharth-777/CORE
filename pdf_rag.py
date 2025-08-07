@@ -5,12 +5,16 @@ import sys
 from parser import extract_formatted_blocks, save_blocks_to_json
 from keyword_extractor import extract_keywords
 import requests
+import cohere  # Add Cohere client
 
-PDF_PATH = "sample 2.pdf"
+PDF_PATH = "sample.pdf"
 PARAGRAPHS_FILE = "reconstructed_paragraphs.json"
 QUERY_DATA_FILE = "query_data.json"
-OLLAMA_MODEL = "llama3"
-OLLAMA_URL = "http://localhost:11434/api/generate"
+COHERE_API_KEY = "W5WiUKKjiTjDVKxAJA4wrTImgcwUQI8LlvD5T7o7"  # Replace with your Cohere API key
+COHERE_MODEL = "command"  # Example Cohere model (e.g., 'command' or 'command-r')
+
+# Initialize Cohere client
+co = cohere.Client(COHERE_API_KEY)
 
 def step_1_extract_pdf():
     print("STEP 1: Extract PDF Content")
@@ -84,21 +88,23 @@ def step_2_semantic_matching(query):
         print(f"Error: {e}")
         return False
 
-def query_ollama(model: str, prompt: str):
+def query_cohere(model: str, prompt: str):
     try:
-        response = requests.post(OLLAMA_URL, json={
-            "model": model,
-            "prompt": prompt,
-            "stream": False
-        })
+        response = co.generate(
+            model=model,
+            prompt=prompt,
+            max_tokens=500,  # Adjust based on your needs
+            temperature=0.7,  # Adjust for creativity/control
+            stop_sequences=["###"]  # Optional: stop at specific markers
+        )
         
-        if response.status_code == 200:
-            return response.json()["response"]
+        if response.generations and len(response.generations) > 0:
+            return response.generations[0].text.strip()
         else:
-            print(f"Ollama error: {response.status_code}")
+            print("Cohere error: No response generated")
             return ""
-    except requests.exceptions.ConnectionError:
-        print("Cannot connect to Ollama")
+    except cohere.CohereAPIError as e:
+        print(f"Cohere API error: {e}")
         return ""
     except Exception as e:
         print(f"Error: {e}")
@@ -159,8 +165,8 @@ MEDIUM PRIORITY = Important coverage information
 
 ### Answer:"""
         
-        print(f"Querying {OLLAMA_MODEL}...")
-        answer = query_ollama(OLLAMA_MODEL, prompt)
+        print(f"Querying {COHERE_MODEL}...")
+        answer = query_cohere(COHERE_MODEL, prompt)
         
         if answer:
             print("\n" + "=" * 40)

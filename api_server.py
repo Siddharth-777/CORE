@@ -1,14 +1,15 @@
 # api_server.py
-from fastapi import FastAPI, Request, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 import uvicorn
 import requests
 import os
-from parser import extract_formatted_blocks, save_blocks_to_json
-from keyword_extractor import extract_keywords
-from main import format_context_with_headers
-import json
+import tempfile
 from dotenv import load_dotenv
+
+from parser import extract_formatted_blocks, save_blocks_to_json
+from semantic_matcher import match_blocks
+from supabase_client import upload_to_supabase
 
 load_dotenv(dotenv_path=".env", encoding="utf-8")
 
@@ -16,17 +17,28 @@ COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
 app = FastAPI()
 
-PDF_FILE = "input.pdf"
-PARAGRAPH_FILE = "reconstructed_paragraphs.json"
-QUERY_FILE = "query_data.json"
-
-COHERE_API_KEY = os.getenv("COHERE_API_KEY")  # Set this as an env variable
 COHERE_URL = "https://api.cohere.ai/v1/chat"
-COHERE_MODEL = "command-r-plus"  # Pro model
+COHERE_MODEL = "command-r-plus"
 
 class HackRxRequest(BaseModel):
     documents: str
     questions: list[str]
+
+def format_context_with_headers(chunks):
+    formatted_context = ""
+    current_header = None
+
+    for block in chunks:
+        block_header = block.get("header", "").strip()
+        block_text = block.get("flagged_text", block["text"]).strip()
+
+        if block_header and block_header != current_header:
+            current_header = block_header
+            formatted_context += f"\n{block_header}\n"
+
+        formatted_context += f"{block_text}\n\n"
+
+    return formatted_context.strip()
 
 def query_cohere(prompt: str):
     headers = {
@@ -43,10 +55,16 @@ def query_cohere(prompt: str):
     response = requests.post(COHERE_URL, headers=headers, json=payload)
 
     if response.status_code == 200:
-        return response.json()["text"]
+        try:
+            return response.json()["text"]
+        except Exception as e:
+            print("JSON parsing error:", e)
+            print("Raw response:", response.text)
+            return "Error: Failed to parse Cohere response"
     else:
-        print("Cohere Error:", response.status_code, response.text)
-        return "Error: Could not get response from Cohere"
+        print("Cohere Error:", response.status_code)
+        print("Raw response:", response.text)
+        return f"Error: Cohere returned status {response.status_code}"
 
 @app.post("/hackrx/run")
 async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
@@ -57,36 +75,41 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
         raise HTTPException(status_code=500, detail="Cohere API key not set")
 
     try:
-        # Step 1: Download the document
+        # Step 1: Download and upload PDF to Supabase
         pdf_url = req.documents
         pdf_data = requests.get(pdf_url)
-        with open(PDF_FILE, "wb") as f:
-            f.write(pdf_data.content)
+        if pdf_data.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to download PDF")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            tmp_pdf.write(pdf_data.content)
+            tmp_pdf.flush()
+            upload_to_supabase("doc-processing", tmp_pdf.name, "pdf/input.pdf")
+            pdf_path = tmp_pdf.name  # used for parsing
 
         # Step 2: Parse PDF
-        blocks = extract_formatted_blocks(PDF_FILE)
-        save_blocks_to_json(blocks, PARAGRAPH_FILE)
+        blocks = extract_formatted_blocks(pdf_path)
+        save_blocks_to_json(blocks)  # this uploads directly to Supabase
 
         answers = []
 
-        for question in req.questions:
-            # Step 3: Keyword Match
-            keywords = extract_keywords(question)
-            with open(PARAGRAPH_FILE, "r", encoding="utf-8") as f:
-                paragraphs = json.load(f)
-
-            matched = [b for b in paragraphs if any(k in b["text"].lower() for k in keywords)]
-
-            with open(QUERY_FILE, "w", encoding="utf-8") as f:
-                json.dump(matched, f, indent=2)
+        for idx, question in enumerate(req.questions):
+            # Step 3: Match blocks and upload JSON to Supabase
+            upload_filename = f"json/query_data_q{idx + 1}.json"
+            matched, _ = match_blocks(
+                paragraphs=blocks,
+                query=question,
+                bucket_name="doc-processing",
+                upload_filename=upload_filename
+            )
 
             # Step 4: Format prompt
             context = format_context_with_headers(matched[:30])
-            prompt = f"""Use the following extracted content from a policy document to answer the question. 
+            prompt = f"""Use the following extracted content from a policy document to answer the question.
 
 Coverage flags:
 COVERS = Inclusions/Benefits
-EXCLUDES = Exclusions/Not Covered  
+EXCLUDES = Exclusions/Not Covered
 EXCEPTION/LIMITATION = Conditions/Restrictions
 CONDITION = Requirements/Conditions
 PRE-EXISTING = Pre-existing condition related
@@ -102,11 +125,13 @@ MEDIUM PRIORITY = Important coverage information
 
 ### Answer:"""
 
-            # Step 5: Query Cohere instead of Ollama
+            # Step 5: Query Cohere
             result = query_cohere(prompt)
             answers.append(result.strip())
 
-        return {"answers": answers}
+        return {
+            "answers": answers
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

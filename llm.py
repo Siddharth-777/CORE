@@ -1,11 +1,16 @@
 import json
 import requests
+from supabase_client import upload_to_supabase
+
 
 OLLAMA_MODEL = "llama3"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
 QUERY_FILE = "query_data.json"
 USER_QUESTION = "How does the Transformer architecture enable better parallelization compared to RNNs and CNNs?"
+
+upload_to_supabase("doc-processing", QUERY_FILE, "json/query_data.json")
+
 
 with open(QUERY_FILE, "r", encoding="utf-8") as f:
     chunks = json.load(f)

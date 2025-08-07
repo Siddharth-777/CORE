@@ -2,6 +2,7 @@ import json
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
+from supabase_client import upload_to_supabase
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
 INPUT_JSON = "reconstructed_paragraphs.json"
@@ -81,5 +82,9 @@ for idx, block in enumerate(blocks):
     y -= LINE_HEIGHT  
 
 draw_page_number(current_page)
+
 c.save()
 print(f"Text-only PDF saved as: {OUTPUT_PDF}")
+
+# Upload to Supabase
+upload_to_supabase("doc-processing", OUTPUT_PDF, "pdf/reconstructed_paragraphs.pdf")

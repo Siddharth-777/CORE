@@ -5,6 +5,9 @@ import nltk
 import unicodedata
 import re
 from collections import Counter
+from supabase_client import upload_to_supabase
+import tempfile
+from supabase_client import upload_to_supabase
 
 try:
     nltk.data.find("tokenizers/punkt")
@@ -415,7 +418,9 @@ def extract_formatted_blocks(pdf_path):
     
     return all_blocks
 
-def save_blocks_to_json(blocks, output_file):
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(blocks, f, indent=2, ensure_ascii=False)
-    print(f"\nExtracted {len(blocks)} blocks and saved to {output_file}")
+def save_blocks_to_json(blocks):
+    # Save to temp file (not to disk)
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as tmp:
+        json.dump(blocks, tmp, indent=2, ensure_ascii=False)
+        tmp.flush()
+        upload_to_supabase("doc-processing", tmp.name, "json/reconstructed_paragraphs.json")

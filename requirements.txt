@@ -4,3 +4,4 @@ requests
 pymupdf
 nltk
 spacy
+supabase

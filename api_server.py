@@ -66,6 +66,10 @@ def query_cohere(prompt: str):
         print("Raw response:", response.text)
         return f"Error: Cohere returned status {response.status_code}"
 
+@app.get("/")
+def home():
+    return {"status": "CORE API is running ✅", "docs": "/docs"}
+
 @app.post("/hackrx/run")
 async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):

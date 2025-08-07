@@ -14,6 +14,12 @@ try:
 except LookupError:
     nltk.download("punkt")
 
+DEBUG=False
+
+def log(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 def normalize_unicode_text(text):
     normalization_map = {
         "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "ft", "ﬆ": "st",
@@ -108,33 +114,33 @@ def is_header_by_visual_properties(block, doc_stats):
     
     if font_size > doc_stats['header_size_threshold']:
         score += 5
-        print(f"   Size {font_size} > threshold {doc_stats['header_size_threshold']}: +5 points")
+        log(f"   Size {font_size} > threshold {doc_stats['header_size_threshold']}: +5 points")
     elif font_size > doc_stats['most_common_size']:
         score += 3
-        print(f"   Size {font_size} > common {doc_stats['most_common_size']}: +3 points")
+        log(f"   Size {font_size} > common {doc_stats['most_common_size']}: +3 points")
     
     if color != doc_stats['most_common_color']:
         score += 3
-        print(f"   Color {color} != common {doc_stats['most_common_color']}: +3 points")
+        log(f"   Color {color} != common {doc_stats['most_common_color']}: +3 points")
     
     if font_name:
         if 'bold' in font_name or 'heavy' in font_name or 'black' in font_name:
             score += 4
-            print(f"   Bold font '{font_name}': +4 points")
+            log(f"   Bold font '{font_name}': +4 points")
         elif 'italic' in font_name and len(text) < 100:
             score += 2
-            print(f"   Italic font '{font_name}': +2 points")
+            log(f"   Italic font '{font_name}': +2 points")
     
     text_length = len(text)
     if text_length < 50:
         score += 2
-        print(f"   Short text ({text_length} chars): +2 points")
+        log(f"   Short text ({text_length} chars): +2 points")
     elif text_length < 100:
         score += 1
-        print(f"   Medium text ({text_length} chars): +1 point")
+        log(f"   Medium text ({text_length} chars): +1 point")
     elif text_length > 300:
         score -= 2
-        print(f"   Long text ({text_length} chars): -2 points")
+        log(f"   Long text ({text_length} chars): -2 points")
     
     header_patterns = [
         r'^\d+\.',
@@ -148,7 +154,7 @@ def is_header_by_visual_properties(block, doc_stats):
     for pattern in header_patterns:
         if re.search(pattern, text):
             score += 2
-            print(f"   Pattern match '{pattern}': +2 points")
+            log(f"   Pattern match '{pattern}': +2 points")
             break
     
     words = text.split()
@@ -156,11 +162,11 @@ def is_header_by_visual_properties(block, doc_stats):
         capitalized_words = sum(1 for word in words if len(word) > 2 and word[0].isupper())
         if capitalized_words / len(words) > 0.6:
             score += 2
-            print(f"   Title case ({capitalized_words}/{len(words)}): +2 points")
+            log(f"   Title case ({capitalized_words}/{len(words)}): +2 points")
     
     if text.isupper() and len(text) > 4:
         score += 3
-        print(f"   All caps: +3 points")
+        log(f"   All caps: +3 points")
     
     false_positive_patterns = [
         r'(?i)(company|limited|ltd|inc|corporation)',
@@ -172,10 +178,10 @@ def is_header_by_visual_properties(block, doc_stats):
     for pattern in false_positive_patterns:
         if re.search(pattern, text):
             score -= 5
-            print(f"   False positive pattern: -5 points")
+            log(f"   False positive pattern: -5 points")
             break
     
-    print(f"   Total score for '{text[:50]}...': {score}")
+    log(f"   Total score for '{text[:50]}...': {score}")
     
     return score >= 5
 
@@ -324,7 +330,7 @@ def extract_formatted_blocks(pdf_path):
     
     for i, block in enumerate(temp_blocks):
         original_text = block['text']
-        print(f"\nBlock {i+1}: '{original_text[:50]}...'")
+        log(f"\nBlock {i+1}: '{original_text[:50]}...'")
         
         coverage_analysis = analyze_coverage_keywords(original_text)
         
@@ -334,7 +340,7 @@ def extract_formatted_blocks(pdf_path):
             current_header_text = original_text.strip()
             current_header = f"[{current_header_text}]"
             
-            print(f"IDENTIFIED AS HEADER: {current_header}")
+            log(f"IDENTIFIED AS HEADER: {current_header}")
             
             current_size = block['size']
             if len(header_hierarchy) > 1:
@@ -383,15 +389,15 @@ def extract_formatted_blocks(pdf_path):
             if coverage_analysis['has_coverage_keywords']:
                 flagged_text = create_coverage_flag_text(coverage_analysis, original_text)
                 block["flagged_text"] = flagged_text
-                print(f"COVERAGE KEYWORDS DETECTED:")
-                print(f"   Classification: {coverage_analysis['primary_classification']}")
-                print(f"   Priority: {coverage_analysis['max_priority']}")
-                print(f"   Flags: {[f['type'] + ':' + str(f['matches']) for f in coverage_analysis['flags']]}")
-                print(f"   Flagged as: {flagged_text.split('\\n')[0]}")
+                log(f"COVERAGE KEYWORDS DETECTED:")
+                log(f"   Classification: {coverage_analysis['primary_classification']}")
+                log(f"   Priority: {coverage_analysis['max_priority']}")
+                log(f"   Flags: {[f['type'] + ':' + str(f['matches']) for f in coverage_analysis['flags']]}")
+                log(f"   Flagged as: {flagged_text.split('\\n')[0]}")
             else:
                 block["flagged_text"] = original_text
                 
-            print(f"Regular content under: {block['direct_header']}")
+            log(f"Regular content under: {block['direct_header']}")
         
         all_blocks.append(block)
 
@@ -405,16 +411,16 @@ def extract_formatted_blocks(pdf_path):
     print(f"   Coverage-related blocks: {len(coverage_blocks)}")
     print(f"   High priority coverage blocks: {len(high_priority_blocks)}")
     
-    print(f"\nHEADERS FOUND:")
+    log(f"\nHEADERS FOUND:")
     for header in headers_found:
-        print(f"   - {header['text']} (size: {header['size']}, color: {header.get('color', 0)})")
+        log(f"   - {header['text']} (size: {header['size']}, color: {header.get('color', 0)})")
     
-    print(f"\nHIGH PRIORITY COVERAGE BLOCKS:")
+    log(f"\nHIGH PRIORITY COVERAGE BLOCKS:")
     for block in high_priority_blocks:
         classification = block.get('coverage_classification', 'UNKNOWN')
         priority = block.get('coverage_priority', 0)
         text_preview = block['text'][:100].replace('\n', ' ')
-        print(f"   - [{classification}] (Priority: {priority}) {text_preview}...")
+        log(f"   - [{classification}] (Priority: {priority}) {text_preview}...")
     
     return all_blocks
 

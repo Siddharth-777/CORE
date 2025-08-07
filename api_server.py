@@ -77,8 +77,8 @@ def query_cohere(prompt: str):
 
 @app.post("/hackrx/run")
 async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    '''if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")'''
 
     if not COHERE_API_KEY:
         raise HTTPException(status_code=500, detail="Cohere API key not set")

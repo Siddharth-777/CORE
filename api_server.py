@@ -8,6 +8,11 @@ from parser import extract_formatted_blocks, save_blocks_to_json
 from keyword_extractor import extract_keywords
 from main import format_context_with_headers
 import json
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=".env", encoding="utf-8")
+
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
 app = FastAPI()
 

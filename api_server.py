@@ -66,10 +66,6 @@ def query_cohere(prompt: str):
         print("Raw response:", response.text)
         return f"Error: Cohere returned status {response.status_code}"
 
-@app.get("/")
-def home():
-    return {"status": "CORE API is running ✅", "docs": "/docs"}
-
 @app.post("/hackrx/run")
 async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -139,3 +135,8 @@ MEDIUM PRIORITY = Important coverage information
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Add this main block to handle Railway deployment
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

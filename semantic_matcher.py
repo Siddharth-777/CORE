@@ -33,7 +33,5 @@ def match_blocks(paragraphs, query, bucket_name="doc-processing", upload_filenam
     public_url = get_public_url(bucket_name, upload_filename)
 
     print(f"\n✅ Found {len(matched_blocks)} matching blocks.")
-    print(f"✅ Uploaded to Supabase: {upload_filename}")
-    print(f"🔗 Public URL: {public_url}")
 
     return matched_blocks, public_url

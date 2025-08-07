@@ -20,6 +20,15 @@ app = FastAPI()
 COHERE_URL = "https://api.cohere.ai/v1/chat"
 COHERE_MODEL = "command-r-plus"
 
+# Add a simple health check endpoint
+@app.get("/")
+async def health_check():
+    return {"status": "healthy", "message": "CORE API is running"}
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "CORE API"}
+
 class HackRxRequest(BaseModel):
     documents: str
     questions: list[str]

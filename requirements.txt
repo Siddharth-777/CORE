@@ -9,5 +9,3 @@ supabase
 sentence-transformers
 scikit-learn
 numpy
-aiohttp
-redis

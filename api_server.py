@@ -113,7 +113,7 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             )
 
             # Step 4: Format prompt
-            context = format_context_with_headers(matched[:30])
+            context = format_context_with_headers(matched)
             prompt = f"""Use the following extracted content from a policy document to answer the question.
 
 Coverage flags:

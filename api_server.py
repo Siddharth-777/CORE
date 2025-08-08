@@ -165,17 +165,22 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
 
             # Step 4: Format prompt
             context = format_context_with_headers(matched)  # All matched blocks
-            prompt = f"""Use the following extracted content from a policy document to answer the question.
+            prompt = f"""You are an expert assistant analyzing an insurance policy document. Use the extracted text below to answer the user's question with:
+
+1. A **detailed**, **well-structured** explanation.
+2. Clear **justifications** by referring to specific clauses, page numbers, or headers found in the context.
+3. Make it easy to trace your reasoning back to the document — ideally mention specific phrases or logic behind your conclusion.
+4. If the answer requires interpretation or there's ambiguity, explain that too.
 
 Coverage flags:
-COVERS = Inclusions/Benefits
-EXCLUDES = Exclusions/Not Covered
-EXCEPTION/LIMITATION = Conditions/Restrictions
-CONDITION = Requirements/Conditions
-PRE-EXISTING = Pre-existing condition related
-CLAIMS = Claims process related
-HIGH PRIORITY = Very important coverage information
-MEDIUM PRIORITY = Important coverage information
+COVERS = Inclusions/Benefits  
+EXCLUDES = Exclusions/Not Covered  
+EXCEPTION/LIMITATION = Conditions/Restrictions  
+CONDITION = Requirements/Conditions  
+PRE-EXISTING = Pre-existing condition related  
+CLAIMS = Claims process related  
+HIGH PRIORITY = Very important coverage information  
+MEDIUM PRIORITY = Important coverage information  
 
 ### Context:
 {context}
@@ -183,7 +188,8 @@ MEDIUM PRIORITY = Important coverage information
 ### Question:
 {question}
 
-### Answer:"""
+### Detailed Answer with Justification:"""
+
 
             # Step 5: Query Cohere
             result = query_cohere(prompt)

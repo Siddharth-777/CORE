@@ -6,4 +6,6 @@ nltk
 spacy
 python-dotenv
 supabase
+sentence-transformers
+scikit-learn
 numpy

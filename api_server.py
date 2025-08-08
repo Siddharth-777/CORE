@@ -6,6 +6,8 @@ import requests
 import os
 import tempfile
 from dotenv import load_dotenv
+from collections import defaultdict
+import re
 
 from parser import extract_formatted_blocks, save_blocks_to_json
 from semantic_matcher import match_blocks
@@ -47,6 +49,58 @@ def format_context_with_headers(chunks):
         formatted_context += f"{block_text}\n\n"
 
     return formatted_context.strip()
+
+def format_reference(blocks, max_blocks=3, question=""):
+    """
+    Format the top matching blocks as a reference string in the format 'Page X : Section Y : Header'.
+    Prioritize blocks with relevant coverage flags based on the question.
+    """
+    seen_headers = defaultdict(int)  # Track headers to avoid duplicates
+    unique_blocks = []
+    
+    # Define relevant coverage flags for each question type
+    relevant_flags = {
+        "grace period": ["CONDITION", "HIGH PRIORITY"],
+        "maternity": ["MATERNITY", "COVERS", "EXCLUDES", "CONDITION"],
+        "moratorium": ["PRE-EXISTING", "HIGH PRIORITY", "CONDITION"]
+    }
+    
+    # Select relevant flags based on question content
+    question_lower = question.lower()
+    selected_flags = []
+    for key, flags in relevant_flags.items():
+        if key in question_lower:
+            selected_flags = flags
+            break
+    
+    # Prioritize blocks with relevant coverage flags
+    prioritized_blocks = []
+    for block in blocks:
+        flags = [f["type"] for f in block.get("coverage_flags", [])]
+        if selected_flags and any(flag in flags for flag in selected_flags):
+            prioritized_blocks.append(block)
+        elif not selected_flags:  # Fallback if no specific flags match
+            prioritized_blocks.append(block)
+    
+    # Remove duplicates
+    for block in prioritized_blocks:
+        header = block.get("header", "No Header").strip()
+        if seen_headers[header] == 0:
+            unique_blocks.append(block)
+            seen_headers[header] += 1
+        if len(unique_blocks) >= max_blocks:
+            break
+
+    references = []
+    for block in unique_blocks:
+        header = block.get("header", "No Header").strip()
+        page = block.get("page", "Unknown")
+        # Extract section number (e.g., '2.21', '3.1.14', '5.6')
+        section_match = re.match(r'^\[?(\d+(\.\d+(\.\d+)?)?)\.?', header)
+        section_number = section_match.group(1) if section_match else "Unknown"
+        references.append(f"Page {page} : Section {section_number} : {header}")
+    
+    return ", ".join(references) if references else "No relevant sections found"
 
 def query_cohere(prompt: str):
     headers = {
@@ -110,7 +164,7 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             )
 
             # Step 4: Format prompt
-            context = format_context_with_headers(matched[:30])
+            context = format_context_with_headers(matched)  # All matched blocks
             prompt = f"""Use the following extracted content from a policy document to answer the question.
 
 Coverage flags:
@@ -133,7 +187,10 @@ MEDIUM PRIORITY = Important coverage information
 
             # Step 5: Query Cohere
             result = query_cohere(prompt)
-            answers.append(result.strip())
+            # Step 6: Format answer with references
+            references = format_reference(matched, question=question)
+            full_answer = f"{result.strip()} Reference : {references}"
+            answers.append(full_answer)
 
         return {
             "answers": answers

@@ -24,6 +24,7 @@ def match_blocks(paragraphs, query, bucket_name="doc-processing", upload_filenam
     scored_blocks.sort(reverse=True, key=lambda x: x[0])
     matched_blocks = [block for score, block in scored_blocks]
 
+    # Save to temp file & upload
     with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as tmp:
         json.dump(matched_blocks, tmp, indent=2, ensure_ascii=False)
         tmp.flush()
@@ -31,6 +32,6 @@ def match_blocks(paragraphs, query, bucket_name="doc-processing", upload_filenam
 
     public_url = get_public_url(bucket_name, upload_filename)
 
-    print(f"\nFound {len(matched_blocks)} matching blocks.")
+    print(f"\n✅ Found {len(matched_blocks)} matching blocks.")
 
     return matched_blocks, public_url

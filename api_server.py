@@ -215,30 +215,17 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
                 upload_filename=upload_filename
             )
             context = format_context_with_headers(matched)
-            prompt = f"""You are an expert assistant analyzing an insurance policy document. Use the extracted text below to answer the user's question with:
+            
+            # Enhanced prompt for better accuracy
+            prompt = f"""f"You are an assistant answering questions based only on the provided document.\n"
+        f"Provide a short, direct answer in plain language.\n"
+        f"Do NOT include:\n"
+        f"- Page numbers\n- Section numbers\n- References\n- Unrelated details\n\n"
+        f"If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
+        f"Document:\n{context}\n\n"
+        f"Question: {question}\nAnswer:"
 
-1. A **detailed**, **well-structured** explanation.
-2. Clear **justifications** by referring to specific clauses, page numbers, or headers found in the context.
-3. Make it easy to trace your reasoning back to the document — ideally mention specific phrases or logic behind your conclusion.
-4. If the answer requires interpretation or there's ambiguity, explain that too.
-
-Coverage flags:
-COVERS = Inclusions/Benefits  
-EXCLUDES = Exclusions/Not Covered  
-EXCEPTION/LIMITATION = Conditions/Restrictions  
-CONDITION = Requirements/Conditions  
-PRE-EXISTING = Pre-existing condition related  
-CLAIMS = Claims process related  
-HIGH PRIORITY = Very important coverage information  
-MEDIUM PRIORITY = Important coverage information  
-
-### Context:
-{context}
-
-### Question:
-{question}
-
-### Detailed Answer with Justification:"""
+"""
 
             result = await query_cohere(prompt)
             references = format_reference(matched, question=question)

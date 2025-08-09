@@ -138,8 +138,8 @@ async def query_cohere(prompt: str):
     payload = {
         "model": COHERE_MODEL,
         "message": prompt,
-        "temperature": 0.3,
-        "max_tokens": 300,
+        "temperature": 0.2,
+        "max_tokens": 350,
     }
     async with aiohttp.ClientSession() as session:
         async with session.post(COHERE_URL, headers=headers, json=payload) as resp:
@@ -208,26 +208,43 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
         async def process_question(idx, question):
             q_start = time.time()
             upload_filename = f"json/query_data_q{idx + 1}.json"
+
             matched, _ = match_blocks(
                 paragraphs=blocks,
                 query=question,
                 bucket_name="doc-processing",
-                upload_filename=upload_filename
+                upload_filename=upload_filename,
+                top_n=8,  # Expanded retrieval
+                include_neighbors=True
             )
-            context = format_context_with_headers(matched)
-            
-            # Enhanced prompt for better accuracy
-            prompt = f"""f"You are an assistant answering questions based only on the provided document.\n"
-        f"Provide a short, direct answer in plain language.\n"
-        f"Do NOT include:\n"
-        f"- Page numbers\n- Section numbers\n- References\n- Unrelated details\n\n"
-        f"If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
-        f"Document:\n{context}\n\n"
-        f"Question: {question}\nAnswer:"
 
-"""
+            context = format_context_with_headers(matched)
+
+            # First pass prompt
+            prompt = (
+                "You are an assistant answering questions based only on the provided document.\n"
+                "Quote the relevant policy wording exactly where possible.\n"
+                "Do NOT add page numbers, section numbers, or extra details not in the document.\n"
+                "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
+                f"Document:\n{context}\n\n"
+                f"Question: {question}\nAnswer:"
+            )
 
             result = await query_cohere(prompt)
+
+            # Fallback if no answer found or missing key terms/numbers
+            if ("Answer not found" in result) or not re.search(r'\d', result):
+                print(f"⚠️ Fallback triggered for Q{idx+1}")
+                full_context = format_context_with_headers(blocks)
+                prompt_full = (
+                    "You are an assistant answering questions based only on the provided document.\n"
+                    "Quote the relevant policy wording exactly where possible.\n"
+                    "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
+                    f"Document:\n{full_context}\n\n"
+                    f"Question: {question}\nAnswer:"
+                )
+                result = await query_cohere(prompt_full)
+
             references = format_reference(matched, question=question)
             ans = f"{result.strip()} Reference : {references}"
             print(f"✅ Q{idx+1} done in {time.time() - q_start:.2f} sec")
@@ -238,7 +255,6 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             *[process_question(i, q) for i, q in enumerate(req.questions)]
         )
         print(f"⏱ All Qs processed in parallel: {time.time() - step4:.2f} sec")
-
         print(f"⏱ TOTAL request time: {time.time() - start_time:.2f} sec")
         return {"answers": answers}
 

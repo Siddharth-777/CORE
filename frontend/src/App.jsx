@@ -740,31 +740,40 @@ function App() {
           <section className="card-grid">
             <article className="card-large">
               <div className="card-header">
-                <h2>Problem Statement</h2>
+                <p className="eyebrow eyebrow-muted">Why this matters</p>
+                <h2>Deliver PDFs as structured, reliable JSON</h2>
               </div>
               <p className="card-description">
-                Build a system that automatically extracts the hierarchical structure of a PDF and converts
-                it into an organized JSON representation.
+                Turn messy PDF layouts into organized data you can trust. Preserve hierarchy, keep headings
+                and content paired, and export cleanly for downstream workflows.
               </p>
               <div className="requirements-section">
-                <h3 className="requirements-title">The system must:</h3>
+                <h3 className="requirements-title">Design principles</h3>
                 <ul className="requirements-list">
-                  <li>Detect headings and subheadings</li>
-                  <li>Identify content blocks under each section</li>
-                  <li>Maintain logical nesting</li>
-                  <li>Output structured data that reflects the original document layout</li>
+                  <li>Keep heading depth and order intact</li>
+                  <li>Attach paragraphs and tables to the correct section</li>
+                  <li>Produce legible JSON that mirrors the document outline</li>
+                  <li>Make it easy to review before exporting</li>
                 </ul>
               </div>
             </article>
             <article className="card card-feature">
-              <div className="card-icon card-icon--document" />
-              <h3>Document Processing</h3>
-              <p>Upload and process unstructured PDF documents with mixed formats and layouts.</p>
+              <p className="eyebrow eyebrow-muted">Ingestion</p>
+              <h3>Document intake</h3>
+              <ul className="feature-list">
+                <li>Drag-and-drop uploads up to 50MB</li>
+                <li>Immediate validation with clear errors</li>
+                <li>Single-click processing when you are ready</li>
+              </ul>
             </article>
             <article className="card card-feature">
-              <div className="card-icon card-icon--ai" />
-              <h3>Structure Recognition</h3>
-              <p>AI-powered detection of document hierarchy and relationships between sections.</p>
+              <p className="eyebrow eyebrow-muted">Extraction</p>
+              <h3>Structure insight</h3>
+              <ul className="feature-list">
+                <li>Outline preview before export</li>
+                <li>Chat to cross-check sections and content</li>
+                <li>JSON output aligned to the detected hierarchy</li>
+              </ul>
             </article>
           </section>
         </main>

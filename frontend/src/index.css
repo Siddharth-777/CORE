@@ -1,6 +1,6 @@
 :root {
   color: #0f172a;
-  background-color: #f7f9fc;
+  background-color: #f8fafc;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -14,7 +14,7 @@
 
 body {
   min-height: 100vh;
-  background: #f7f9fc;
+  background: #f8fafc;
   color: #0f172a;
 }
 
@@ -23,7 +23,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f7f9fc;
+  background: #f8fafc;
 }
 
 .shell-header {
@@ -36,7 +36,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
 }
 
 button {
@@ -128,13 +128,13 @@ button {
 
 .shell-sidebar {
   background: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  padding: 20px 14px;
+  border: 1px solid #e5e7eb;
+  padding: 18px 14px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  gap: 16px;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
   position: sticky;
   top: 86px;
 }
@@ -160,7 +160,7 @@ button {
   background: transparent;
   border: none;
   color: #0f172a;
-  border-radius: 12px;
+  border-radius: 999px;
   font-weight: 600;
   text-align: left;
 }
@@ -182,8 +182,9 @@ button {
 .step-badge {
   width: 26px;
   height: 26px;
-  border-radius: 10px;
-  background: #e5e7eb;
+  border-radius: 50%;
+  border: 1px solid #d7dce4;
+  background: #fff;
   color: #0f172a;
   display: grid;
   place-items: center;
@@ -192,27 +193,28 @@ button {
 }
 
 .sidebar-item--active .step-badge {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
+  border-color: transparent;
 }
 
 .sidebar-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: #e5e7eb;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
 }
 
 .sidebar-icon--chat {
-  background: linear-gradient(135deg, #0f172a, #111827);
+  border-color: #0f172a;
 }
 
 .sidebar-icon--settings {
-  background: linear-gradient(135deg, #6b7280, #4b5563);
+  border-color: #6b7280;
 }
 
 .sidebar-icon--history {
-  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+  border-color: #cbd5e1;
 }
 
 .shell-main {
@@ -226,9 +228,9 @@ button {
 .shell-hero {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 18px 20px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
   margin-bottom: 16px;
 }
 
@@ -291,9 +293,9 @@ button {
 .card-grid {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
 }
 
 .upload-zone {
@@ -353,17 +355,17 @@ button {
 .file-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: #eef2ff;
+  border-radius: 50%;
+  border: 1px solid #d7dce4;
   display: grid;
   place-items: center;
 }
 
 .file-icon-pdf {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #dc2626, #f87171);
+  width: 14px;
+  height: 18px;
+  border-radius: 3px;
+  border: 2px solid #dc2626;
 }
 
 .file-details h3 {
@@ -457,7 +459,7 @@ button {
 
 .tree-item {
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 10px;
   margin-bottom: 6px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -643,27 +645,28 @@ button {
   color: #0f172a;
 }
 
+
 .card-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .card {
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 14px;
   background: #ffffff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
 
 .card-large {
   grid-column: span 2;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
 }
 
 .card-header h2 {
@@ -696,19 +699,15 @@ button {
   align-content: start;
 }
 
-.card-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: #eef2ff;
+.feature-list {
+  display: grid;
+  gap: 6px;
+  color: #475569;
+  padding-left: 16px;
 }
 
-.card-icon--document {
-  background: linear-gradient(135deg, #0284c7, #38bdf8);
-}
-
-.card-icon--ai {
-  background: linear-gradient(135deg, #7c3aed, #c084fc);
+.eyebrow-muted {
+  color: #94a3b8;
 }
 
 @media (max-width: 1100px) {

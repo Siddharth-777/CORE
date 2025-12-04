@@ -15,6 +15,19 @@ from parser import extract_formatted_blocks, save_blocks_to_json
 from semantic_matcher import match_blocks
 from supabase_client import upload_to_supabase, get_public_url, get_supabase_client
 
+SECTION_PATTERNS = [
+    r"^\d+(\.\d+)\s+[A-Za-z].$",             # 1, 1.1, 1.1.2 titled sections
+    r"^[A-Z][A-Z\s]{3,}$",                     # ALL CAPS headings
+    r"^(Coverage|Exclusions|Definitions|Benefits|Waiting Periods|Claims?)$",
+]
+
+
+def is_heading(text: str):
+    text = text.strip()
+    if not text:
+        return False
+    return any(re.match(p, text) for p in SECTION_PATTERNS)
+
 load_dotenv(dotenv_path=".env", encoding="utf-8")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -78,11 +91,14 @@ class HackRxRequest(BaseModel):
 
 
 def format_context_with_headers(chunks):
+    """
+    Build text context using either header or section so Section Unknown never appears.
+    """
     formatted_context = ""
     current_header = None
     for block in chunks:
-        block_header = block.get("header", "").strip()
-        block_text = block.get("flagged_text", block["text"]).strip()
+        block_header = (block.get("header") or block.get("section") or "").strip()
+        block_text = block.get("flagged_text", block.get("text", "")).strip()
         if block_header and block_header != current_header:
             current_header = block_header
             formatted_context += f"\n{block_header}\n"
@@ -112,7 +128,7 @@ def format_reference(blocks, max_blocks=3, question=""):
         elif not selected_flags:
             prioritized_blocks.append(block)
     for block in prioritized_blocks:
-        header = block.get("header", "No Header").strip()
+        header = (block.get("header") or block.get("section") or "No Header").strip()
         if seen_headers[header] == 0:
             unique_blocks.append(block)
             seen_headers[header] += 1
@@ -120,12 +136,41 @@ def format_reference(blocks, max_blocks=3, question=""):
             break
     references = []
     for block in unique_blocks:
-        header = block.get("header", "No Header").strip()
+        header = (block.get("header") or block.get("section") or "No Header").strip()
+
         page = block.get("page", "Unknown")
         section_match = re.match(r'^\[?(\d+(\.\d+(\.\d+)?)?)\.?', header)
         section_number = section_match.group(1) if section_match else "Unknown"
         references.append(f"Page {page} : Section {section_number} : {header}")
     return ", ".join(references) if references else "No relevant sections found"
+
+
+
+def format_answer_json(question: str, answer_text: str, matched_blocks: list):
+    """
+    Creates structured JSON with correct section/page/text for each reference block.
+    Also converts escaped \n into real newlines.
+    """
+    references = []
+
+    for b in matched_blocks:
+        clean_text = (
+            b.get("text") or b.get("flagged_text") or ""
+        ).replace("\\n", "\n").strip()
+
+        ref = {
+            "page": b.get("page") or b.get("pagenumber") or "Unknown",
+            "section": b.get("section") or b.get("header") or "Miscellaneous",
+            "text": clean_text
+        }
+
+        references.append(ref)
+
+    return {
+        "question": question,
+        "answer": answer_text.strip(),
+        "references": references
+    }
 
 
 async def query_groq(prompt: str):
@@ -224,29 +269,23 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             context = format_context_with_headers(matched)
 
             prompt = (
-                "You are an assistant that must answer strictly and exclusively from the content contained in the provided document.\n"
-                "Your entire reasoning and output must remain fully grounded in the document and nowhere else.\n\n"
-                "NON-NEGOTIABLE RULES (the assistant must obey these exactly):\n"
-                "1. You may use ONLY information explicitly written in the document.\n"
-                "2. If you refer to information from the document, you must quote the exact wording with no alterations.\n"
-                "3. You must not add, assume, infer, interpret, reformulate, or rely on any outside knowledge.\n"
-                "4. You must not summarize unless the summary is composed entirely of quotes from the document.\n"
-                "5. You must not fabricate details, metadata, page numbers, section labels, rationale, or context not present in the document.\n"
-                "6. You must not attempt to explain, clarify, or expand beyond what the document directly states.\n"
-                "7. If the answer is not explicitly present in the document, you must reply with EXACTLY:\n"
+                "You must answer strictly and exclusively from the provided document. "
+                "Your entire output must remain fully grounded in it.\n\n"
+                "RULES (no exceptions):\n"
+                "1. Use ONLY information explicitly in the document.\n"
+                "2. Quote exact wording whenever referencing the document.\n"
+                "3. Do NOT add, assume, infer, interpret, or use outside knowledge.\n"
+                "4. Do NOT summarize unless the summary consists only of quoted text.\n"
+                "5. Do NOT fabricate details, metadata, page numbers, or section labels.\n"
+                "6. Do NOT explain or expand beyond what the document states.\n"
+                "7. If the answer is not explicitly present, reply EXACTLY:\n"
                 "   Answer not found in the provided document.\n"
-                "8. No alternative phrasing, no elaboration, and no additional commentary is allowed beyond the answer itself.\n\n"
-                "OUTPUT REQUIREMENTS:\n"
-                "- Your answer must follow all rules above without exception.\n"
-                "- Your answer must be as concise as possible while strictly quoting the document when needed.\n"
-                "- If multiple sections of the document are relevant, quote them exactly and only.\n\n"
+                "8. No alternative phrasing or extra commentary beyond the answer.\n\n"
                 "TASK:\n"
-                "Answer the question strictly using only the provided document.\n\n"
+                "Answer the question strictly using the document.\n\n"
                 f"Document:\n{context}\n\n"
-                f"Question: {question}\n"
-                "Answer:\n"
-                "- Provide the answer using exact quotes from the document.\n"
-                "- If no answer is available, respond exactly with: Answer not found in the provided document."
+                f"Question: {question}\n\n"
+                "Answer:"
             )
 
             result = await query_groq(prompt)
@@ -255,36 +294,17 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
                 print(f"Fallback triggered for Q{idx+1}")
                 full_context = format_context_with_headers(blocks)
                 prompt_full = (
-                    "You are an assistant that must answer strictly and exclusively from the content contained in the provided document.\n"
-                    "Your entire reasoning and output must remain fully grounded in the document and nowhere else.\n\n"
-                    "NON-NEGOTIABLE RULES (the assistant must obey these exactly):\n"
-                    "1. You may use ONLY information explicitly written in the document.\n"
-                    "2. If you refer to information from the document, you must quote the exact wording with no alterations.\n"
-                    "3. You must not add, assume, infer, interpret, reformulate, or rely on any outside knowledge.\n"
-                    "4. You must not summarize unless the summary is composed entirely of quotes from the document.\n"
-                    "5. You must not fabricate details, metadata, page numbers, section labels, rationale, or context not present in the document.\n"
-                    "6. You must not attempt to explain, clarify, or expand beyond what the document directly states.\n"
-                    "7. If the answer is not explicitly present in the document, you must reply with EXACTLY:\n"
-                    "   Answer not found in the provided document.\n"
-                    "8. No alternative phrasing, no elaboration, and no additional commentary is allowed beyond the answer itself.\n\n"
-                    "OUTPUT REQUIREMENTS:\n"
-                    "- Your answer must follow all rules above without exception.\n"
-                    "- Your answer must be as concise as possible while strictly quoting the document when needed.\n"
-                    "- If multiple sections of the document are relevant, quote them exactly and only.\n\n"
-                    "TASK:\n"
-                    "Answer the question strictly using only the provided document.\n\n"
+                    "You are an assistant answering questions based only on the provided document.\n"
+                    "Quote the relevant policy wording exactly where possible.\n"
+                    "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
                     f"Document:\n{full_context}\n\n"
-                    f"Question: {question}\n"
-                    "Answer:\n"
-                    "- Provide the answer using exact quotes from the document.\n"
-                    "- If no answer is available, respond exactly with: Answer not found in the provided document."
+                    f"Question: {question}\nAnswer:"
                 )
                 result = await query_groq(prompt_full)
-
-            references = format_reference(matched, question=question)
-            ans = f"{result.strip()} Reference : {references}"
+            cleaned_result = result.replace("\\n", "\n").strip()
+            formatted = format_answer_json(question, cleaned_result, matched)
             print(f"Q{idx+1} done in {time.time() - q_start:.2f} sec")
-            return ans
+            return formatted
 
         step4 = time.time()
         answers = await asyncio.gather(

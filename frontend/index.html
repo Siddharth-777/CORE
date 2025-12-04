@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Structure Extractor</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="logo">PDF Structure Extractor</div>
+      <nav class="nav">
+        <div class="nav-group">
+          <p class="nav-title">Workflow</p>
+          <a class="nav-item active" href="#">Upload PDF</a>
+          <a class="nav-item" href="#">Detect Structure</a>
+          <a class="nav-item" href="#">Extract Content</a>
+          <a class="nav-item" href="#">Upload</a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-title">System</p>
+          <a class="nav-item" href="#">Settings</a>
+          <a class="nav-item" href="#">Logs</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumbs">Step 1 · Upload</div>
+        <div class="actions">
+          <a class="link" href="#">Documentation</a>
+          <a class="link" href="#">Export JSON</a>
+        </div>
+      </header>
+
+      <section class="upload-card">
+        <div class="upload-card__content">
+          <div class="upload-card__header">
+            <p class="eyebrow">STEP 1 · Upload · <span class="status success">File Ready</span></p>
+            <h1>Upload your PDF document</h1>
+            <p class="muted">Companies have lots of PDFs that are messy to parse. These files have headings, subheadings, tables, and different formats. Upload your PDF to begin the extraction process.</p>
+          </div>
+          <div class="file-row">
+            <div class="file-chip">
+              <span class="file-name">policy.pdf</span>
+              <span class="file-size">64 pages</span>
+              <button class="chip-action" aria-label="Remove file">✕</button>
+            </div>
+            <div class="file-actions">
+              <button class="btn ghost">Process File</button>
+              <button class="btn primary">Fetch Contract</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="info-grid">
+        <article class="info-card">
+          <header>
+            <p class="eyebrow">Problem Statement</p>
+            <h2 class="card-title">Build a system that automatically extracts the hierarchical structure of a PDF and converts it into an organized JSON representation.</h2>
+          </header>
+          <div class="chip-row">
+            <span class="chip">The system must</span>
+          </div>
+          <ul class="pill-list">
+            <li>Detect headings and subheadings</li>
+            <li>Identify content blocks under each section</li>
+            <li>Maintain logical ordering</li>
+            <li>Output structured data that reflects the original document layout</li>
+          </ul>
+        </article>
+
+        <article class="info-card accent">
+          <p class="eyebrow">Document Processing</p>
+          <h2 class="card-title">Upload and process unstructured PDF documents with mixed formats and layouts.</h2>
+        </article>
+
+        <article class="info-card">
+          <p class="eyebrow">Structure Recognition</p>
+          <h2 class="card-title">Analyze layout to detect heading hierarchy and content grouping.</h2>
+          <div class="chip-row">
+            <span class="chip">Features</span>
+          </div>
+          <ul class="pill-list">
+            <li>Heading detection with font size/style heuristics</li>
+            <li>Content grouping by spatial proximity</li>
+            <li>Hierarchical section labeling</li>
+          </ul>
+        </article>
+
+        <article class="info-card">
+          <p class="eyebrow">Extract and Upload</p>
+          <h2 class="card-title">Export the recognized structure as JSON for downstream systems.</h2>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

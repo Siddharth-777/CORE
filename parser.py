@@ -1,4 +1,4 @@
-import fitz  
+import fitz
 import json
 import os
 import nltk
@@ -7,12 +7,13 @@ import re
 from collections import Counter
 from supabase_client import upload_to_supabase
 import tempfile
-from supabase_client import upload_to_supabase
 
 try:
     nltk.data.find("tokenizers/punkt")
+    nltk.data.find("tokenizers/punkt_tab")
 except LookupError:
     nltk.download("punkt")
+    nltk.download("punkt_tab")
 
 DEBUG=False
 
@@ -393,7 +394,8 @@ def extract_formatted_blocks(pdf_path):
                 log(f"   Classification: {coverage_analysis['primary_classification']}")
                 log(f"   Priority: {coverage_analysis['max_priority']}")
                 log(f"   Flags: {[f['type'] + ':' + str(f['matches']) for f in coverage_analysis['flags']]}")
-                log(f"   Flagged as: {flagged_text.split('\\n')[0]}")
+                first_flag_line = flagged_text.split("\n", 1)[0]
+                log(f"   Flagged as: {first_flag_line}")
             else:
                 block["flagged_text"] = original_text
                 

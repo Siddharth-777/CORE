@@ -4,7 +4,6 @@ import "./App.css";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 function App() {
-  const [activeTab, setActiveTab] = useState("upload");
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -146,7 +145,6 @@ function App() {
       const data = await res.json();
       setSessionId(data.session_id);
       setIsProcessingStarted(true);
-      setActiveTab("detect");
 
       setMessages([
         {
@@ -299,474 +297,321 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
-      <header className="shell-header">
-        <div className="shell-logo">
-          <span className="logo-icon" />
+    <div className="page">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" />
           PDF Structure Extractor
         </div>
-        <nav className="shell-header-actions">
-          <button className="ghost-button">Documentation</button>
-          <button className="ghost-button">API</button>
+        <nav className="topbar-actions">
+          <button className="link-button" type="button">
+            Docs
+          </button>
+          <button className="link-button" type="button">
+            API
+          </button>
           <button className="primary-button" disabled={!sessionId}>
             Export JSON
           </button>
         </nav>
       </header>
 
-      <div className="shell-body">
-        <aside className="shell-sidebar">
-          <div className="sidebar-section">
-            <p className="sidebar-label">WORKFLOW</p>
-            <button
-              className={`sidebar-item ${
-                activeTab === "upload" ? "sidebar-item--active" : ""
-              }`}
-              onClick={() => setActiveTab("upload")}
-            >
-              <span className="step-badge">1</span>
-              <span>Upload PDF</span>
-            </button>
-            <button
-              className={`sidebar-item ${
-                activeTab === "detect" ? "sidebar-item--active" : ""
-              }`}
-              onClick={() => setActiveTab("detect")}
-              disabled={!sessionId}
-            >
-              <span className="step-badge">2</span>
-              <span>Detect Structure</span>
-            </button>
-            <button
-              className={`sidebar-item ${
-                activeTab === "extract" ? "sidebar-item--active" : ""
-              }`}
-              onClick={() => setActiveTab("extract")}
-              disabled={!sessionId}
-            >
-              <span className="step-badge">3</span>
-              <span>Extract Content</span>
-            </button>
-            <button
-              className={`sidebar-item ${
-                activeTab === "chatbot" ? "sidebar-item--active" : ""
-              }`}
-              onClick={() => setActiveTab("chatbot")}
-            >
-              <span className="sidebar-icon sidebar-icon--chat" />
-              <span>Chatbot</span>
-            </button>
+      <main className="content">
+        <section className="hero">
+          <div className="hero-text">
+            <p className="eyebrow">Structured PDF workspace</p>
+            <h1>Minimal surface, focused on the document</h1>
+            <p className="lede">
+              Upload a policy, contract, or report and review the outline, extracted highlights, and chat
+              responses without distractions.
+            </p>
+            <div className="hero-actions">
+              <button className="primary-button" type="button" onClick={handleChooseFileClick}>
+                Start with a PDF
+              </button>
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={() => {
+                  document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Jump to upload
+              </button>
+            </div>
           </div>
-          <div className="sidebar-section">
-            <p className="sidebar-label">SYSTEM</p>
-            <button
-              className={`sidebar-item ${
-                activeTab === "settings" ? "sidebar-item--active" : ""
-              }`}
-              onClick={() => setActiveTab("settings")}
-            >
-              <span className="sidebar-icon sidebar-icon--settings" />
-              <span>Settings</span>
-            </button>
-            <button className="sidebar-item" disabled>
-              <span className="sidebar-icon sidebar-icon--history" />
-              <span>History</span>
-            </button>
+          <div className="hero-quicklist">
+            <div className="quick-item">
+              <p className="quick-title">Outline aware</p>
+              <p className="muted">Headings, subheadings, and tables stay grouped.</p>
+            </div>
+            <div className="quick-item">
+              <p className="quick-title">JSON ready</p>
+              <p className="muted">Export once you are happy with the preview.</p>
+            </div>
+            <div className="quick-item">
+              <p className="quick-title">Assistant on-call</p>
+              <p className="muted">Ask questions that stay grounded in your PDF.</p>
+            </div>
           </div>
-        </aside>
+        </section>
 
-        <main className="shell-main">
-          {activeTab === "upload" && (
-            <>
-              <section className="shell-hero">
-                <div>
-                  <div className="eyebrow-container">
-                    <span className="eyebrow">Step 1: Upload</span>
-                    <span
-                      className={`status-badge ${
-                        uploadedFile ? "status-badge--success" : "status-badge--ready"
-                      }`}
-                    >
-                      {uploadedFile ? "File Ready" : "Ready"}
-                    </span>
-                  </div>
-                  <h1>Upload your PDF document</h1>
-                  <p className="hero-copy">
-                    Companies have lots of PDFs that are messy and unstructured. These files
-                    have headings, subheadings, tables, and different formats. Upload your PDF
-                    to begin the extraction process.
-                  </p>
+        <section className="panel" id="upload">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Step 1</p>
+              <h2>Upload and validate</h2>
+              <p className="muted">Drop a single PDF up to 50MB. We keep the process quiet and clear.</p>
+            </div>
+            <span
+              className={`status-chip ${uploadedFile ? "status-chip--ready" : "status-chip--idle"}`}
+            >
+              {uploadedFile ? "File ready" : "Waiting for file"}
+            </span>
+          </div>
+
+          <div className="upload-area">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileInputChange}
+              accept=".pdf,application/pdf"
+              style={{ display: "none" }}
+            />
+            {!uploadedFile ? (
+              <div
+                className={`upload-zone ${isDragging ? "upload-zone--dragging" : ""}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={(e) => {
+                  if (e.target.tagName !== "BUTTON") {
+                    handleChooseFileClick();
+                  }
+                }}
+              >
+                <div className="upload-icon" />
+                <div className="upload-copy">
+                  <h3>Drop your PDF</h3>
+                  <p className="muted">or click to choose from your computer</p>
                 </div>
-              </section>
-              <div className="upload-area">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileInputChange}
-                  accept=".pdf,application/pdf"
-                  style={{ display: "none" }}
-                />
-                {!uploadedFile ? (
-                  <div
-                    className={`upload-zone ${isDragging ? "upload-zone--dragging" : ""}`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={(e) => {
-                      if (e.target.tagName !== "BUTTON") {
-                        handleChooseFileClick();
-                      }
-                    }}
-                  >
-                    <div className="upload-icon" />
-                    <h3>Drag & drop your PDF here</h3>
-                    <p>or click to browse files</p>
-                    <button
-                      className="upload-button"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleChooseFileClick();
-                      }}
-                    >
-                      Choose File
-                    </button>
-                    <p className="upload-hint">Supports PDF files up to 50MB</p>
-                  </div>
-                ) : (
-                  <div className="uploaded-file-card">
-                    <div className="file-info">
-                      <div className="file-icon">
-                        <div className="file-icon-pdf" />
-                      </div>
-                      <div className="file-details">
-                        <h3 className="file-name">{uploadedFile.name}</h3>
-                        <p className="file-size">{formatFileSize(uploadedFile.size)}</p>
-                      </div>
-                    </div>
-                    <div className="file-actions">
-                      <button
-                        className="file-action-button file-action-button--primary"
-                        onClick={handleProcessFile}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? "Processing…" : "Process File"}
-                      </button>
-                      <button className="file-action-button" onClick={handleRemoveFile}>
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {uploadError && <div className="upload-error">{uploadError}</div>}
+                <button
+                  className="upload-button"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleChooseFileClick();
+                  }}
+                >
+                  Browse files
+                </button>
               </div>
-            </>
-          )}
-
-          {activeTab === "detect" && (
-            <>
-              <section className="shell-hero">
-                <div>
-                  <div className="eyebrow-container">
-                    <span className="eyebrow">Step 2: Detection</span>
-                    <span className="status-badge status-badge--processing">
-                      {sessionId ? "Ready" : "Waiting"}
-                    </span>
+            ) : (
+              <div className="uploaded-file-card">
+                <div className="file-info">
+                  <div className="file-icon">
+                    <div className="file-icon-pdf" />
                   </div>
-                  <h1>Detect headings and subheadings</h1>
-                  <p className="hero-copy">
-                    The system automatically identifies the hierarchical structure of your PDF. It
-                    detects headings, subheadings, and their relationships to build a logical
-                    document tree.
-                  </p>
+                  <div className="file-details">
+                    <h3 className="file-name">{uploadedFile.name}</h3>
+                    <p className="file-size">{formatFileSize(uploadedFile.size)}</p>
+                  </div>
                 </div>
-              </section>
-              <div className="progress-section">
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: sessionId ? "100%" : "35%" }} />
-                </div>
-                <p className="progress-text">
-                  {sessionId
-                    ? "Document parsed. Pull a preview of detected headings."
-                    : "Upload and process your PDF to start detection."}
-                </p>
-                <div className="preview-actions">
+                <div className="file-actions">
                   <button
-                    className="primary-button"
-                    onClick={handleDetectPreview}
-                    disabled={!sessionId || detectLoading}
+                    className="file-action-button file-action-button--primary"
+                    onClick={handleProcessFile}
+                    disabled={isUploading}
                   >
-                    {detectLoading ? "Fetching…" : "Fetch detected outline"}
+                    {isUploading ? "Processing…" : "Process"}
                   </button>
-                  <button className="ghost-button" onClick={() => setActiveTab("extract")} disabled={!sessionId}>
-                    Go to Extraction
+                  <button className="file-action-button" onClick={handleRemoveFile}>
+                    Remove
                   </button>
                 </div>
-                {detectError && <div className="upload-error">{detectError}</div>}
               </div>
-              <div className="detection-preview">
-                <h3 className="preview-title">Detected Structure Preview</h3>
-                <div className="structure-tree">
-                  {detectionPreview ? (
-                    detectionPreview.split("\n").map((line, idx) => (
-                      <div key={idx} className="tree-item">
-                        {line}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="placeholder-text">
-                      No preview yet. Fetch the outline once your PDF is processed.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+            )}
+            {uploadError && <div className="upload-error">{uploadError}</div>}
+          </div>
+        </section>
 
-          {activeTab === "extract" && (
-            <>
-              <section className="shell-hero">
-                <div>
-                  <div className="eyebrow-container">
-                    <span className="eyebrow">Step 3: Extraction</span>
-                    <span className="status-badge status-badge--processing">
-                      {sessionId ? "Ready" : "Waiting"}
-                    </span>
-                  </div>
-                  <h1>Identify content blocks</h1>
-                  <p className="hero-copy">
-                    Content blocks under each section are identified and organized. The system
-                    maintains logical nesting to preserve the original document layout and structure.
-                  </p>
-                </div>
-              </section>
-              <div className="progress-section">
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: sessionId ? "100%" : "35%" }} />
-                </div>
-                <p className="progress-text">
-                  {sessionId
-                    ? "Pull a summarized view of extracted content blocks."
-                    : "Upload and process your PDF to extract content."}
-                </p>
-                <div className="preview-actions">
-                  <button
-                    className="primary-button"
-                    onClick={handleExtractPreview}
-                    disabled={!sessionId || extractLoading}
-                  >
-                    {extractLoading ? "Fetching…" : "Fetch extraction summary"}
-                  </button>
-                  <button className="ghost-button" onClick={() => setActiveTab("chatbot")}>Go to Chatbot</button>
-                </div>
-                {extractError && <div className="upload-error">{extractError}</div>}
-              </div>
-              <div className="detection-preview">
-                <h3 className="preview-title">Extracted Content Overview</h3>
-                <div className="structure-tree">
-                  {extractionPreview ? (
-                    extractionPreview.split("\n").map((line, idx) => (
-                      <div key={idx} className="tree-item">
-                        {line}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="placeholder-text">
-                      No extraction summary yet. Fetch it once your PDF is processed.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeTab === "chatbot" && (
-            <>
-              <section className="shell-hero">
-                <div>
-                  <div className="eyebrow-container">
-                    <span className="eyebrow">Assistant</span>
-                    <span
-                      className={`status-badge ${
-                        isProcessingStarted ? "status-badge--success" : "status-badge--ready"
-                      }`}
-                    >
-                      {isProcessingStarted ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  <h1>Document Analysis Assistant</h1>
-                  <p className="hero-copy">
-                    Get assistance with PDF structure extraction, ask questions about detected elements,
-                    understand the extraction process, or learn about the output format. The assistant is
-                    available after you process a document.
-                  </p>
-                </div>
-              </section>
-
-              {!isProcessingStarted ? (
-                <div className="chatbot-inactive">
-                  <div className="inactive-message">
-                    <div className="inactive-icon" />
-                    <h3>Assistant Not Available</h3>
-                    <p>Please upload a PDF file and click "Process File" to activate the assistant.</p>
-                    <button
-                      className="primary-button"
-                      onClick={() => setActiveTab("upload")}
-                      style={{ marginTop: "20px" }}
-                    >
-                      Go to Upload
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="chatbot-container">
-                  <div className="chat-messages">
-                    {messages.length === 0 ? (
-                      <div className="chat-message chat-message--bot">
-                        <div className="chat-avatar">
-                          <div className="avatar avatar--bot" />
-                        </div>
-                        <div className="chat-content">
-                          <p>Initializing assistant...</p>
-                        </div>
-                      </div>
-                    ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`chat-message ${
-                            message.sender === "bot" ? "chat-message--bot" : "chat-message--user"
-                          }`}
-                        >
-                          <div className="chat-avatar">
-                            {message.sender === "bot" ? (
-                              <div className="avatar avatar--bot" />
-                            ) : (
-                              <div className="avatar avatar--user" />
-                            )}
-                          </div>
-                          <div className="chat-content">
-                            <p>{message.text}</p>
-                            {message.sender === "bot" && message.references && message.references.length > 0 && (
-                              <div className="chat-refs">
-                                <strong>References:</strong>
-                                <ul>
-                                  {message.references.slice(0, 4).map((ref, idx) => (
-                                    <li key={idx}>
-                                      Page {ref.page} – {ref.section}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-
-                    {chatError && <div className="upload-error">{chatError}</div>}
-                  </div>
-                  <div className="chat-input-container">
-                    <input
-                      type="text"
-                      className="chat-input"
-                      placeholder={
-                        sessionId
-                          ? "Ask about document structure, extraction process, or output format..."
-                          : "Process a PDF first to activate the assistant."
-                      }
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && inputMessage.trim()) {
-                          handleSendMessage();
-                        }
-                      }}
-                    />
-                    <button
-                      className="chat-send-button"
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || !sessionId || isAsking}
-                    >
-                      {isAsking ? "Thinking…" : "Send"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === "settings" && (
-            <>
-              <section className="shell-hero">
-                <div>
-                  <p className="eyebrow">Configuration</p>
-                  <h1>System settings</h1>
-                  <p className="hero-copy">
-                    Configure detection sensitivity, output format preferences, and processing options.
-                  </p>
-                </div>
-              </section>
-              <div className="settings-grid">
-                <div className="setting-card">
-                  <h3>Detection Sensitivity</h3>
-                  <div className="slider-container">
-                    <input type="range" min="1" max="10" defaultValue="7" className="slider" />
-                    <div className="slider-labels">
-                      <span>Low</span>
-                      <span>High</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="setting-card">
-                  <h3>Output Format</h3>
-                  <div className="radio-group">
-                    <label className="radio-option">
-                      <input type="radio" name="format" defaultChecked />
-                      <span>Pretty JSON</span>
-                    </label>
-                    <label className="radio-option">
-                      <input type="radio" name="format" />
-                      <span>Minified JSON</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          <section className="card-grid">
-            <article className="card-large">
-              <div className="card-header">
-                <h2>Problem Statement</h2>
-              </div>
-              <p className="card-description">
-                Build a system that automatically extracts the hierarchical structure of a PDF and converts
-                it into an organized JSON representation.
+        <section className="panel minimal-grid">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Step 2</p>
+              <h2>Review the outline and content</h2>
+              <p className="muted">
+                Pull a quick outline, skim the extracted highlights, and move on to export when it looks right.
               </p>
-              <div className="requirements-section">
-                <h3 className="requirements-title">The system must:</h3>
-                <ul className="requirements-list">
-                  <li>Detect headings and subheadings</li>
-                  <li>Identify content blocks under each section</li>
-                  <li>Maintain logical nesting</li>
-                  <li>Output structured data that reflects the original document layout</li>
-                </ul>
+            </div>
+            <div className="progress-pill">
+              <span className="progress-dot" />
+              {sessionId ? "Document parsed" : "Waiting for processing"}
+            </div>
+          </div>
+
+          <div className="grid two-col">
+            <div className="preview-block">
+              <div className="preview-header">
+                <div>
+                  <p className="muted">Detected outline</p>
+                  <h3>Structure preview</h3>
+                </div>
+                <button
+                  className="ghost-button"
+                  onClick={handleDetectPreview}
+                  disabled={!sessionId || detectLoading}
+                >
+                  {detectLoading ? "Fetching…" : "Fetch outline"}
+                </button>
               </div>
-            </article>
-            <article className="card card-feature">
-              <div className="card-icon card-icon--document" />
-              <h3>Document Processing</h3>
-              <p>Upload and process unstructured PDF documents with mixed formats and layouts.</p>
-            </article>
-            <article className="card card-feature">
-              <div className="card-icon card-icon--ai" />
-              <h3>Structure Recognition</h3>
-              <p>AI-powered detection of document hierarchy and relationships between sections.</p>
-            </article>
-          </section>
-        </main>
-      </div>
+              <div className="structure-box">
+                {detectionPreview ? (
+                  detectionPreview.split("\n").map((line, idx) => (
+                    <div key={idx} className="structure-row">
+                      {line}
+                    </div>
+                  ))
+                ) : (
+                  <p className="placeholder-text">
+                    No preview yet. Process and fetch to see headings and subheadings.
+                  </p>
+                )}
+              </div>
+              {detectError && <div className="upload-error">{detectError}</div>}
+            </div>
+
+            <div className="preview-block">
+              <div className="preview-header">
+                <div>
+                  <p className="muted">Extracted notes</p>
+                  <h3>Content snapshot</h3>
+                </div>
+                <button
+                  className="ghost-button"
+                  onClick={handleExtractPreview}
+                  disabled={!sessionId || extractLoading}
+                >
+                  {extractLoading ? "Fetching…" : "Fetch summary"}
+                </button>
+              </div>
+              <div className="structure-box">
+                {extractionPreview ? (
+                  extractionPreview.split("\n").map((line, idx) => (
+                    <div key={idx} className="structure-row">
+                      {line}
+                    </div>
+                  ))
+                ) : (
+                  <p className="placeholder-text">
+                    Grab a summary to see how content is grouped before exporting.
+                  </p>
+                )}
+              </div>
+              {extractError && <div className="upload-error">{extractError}</div>}
+            </div>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Step 3</p>
+              <h2>Ask the assistant</h2>
+              <p className="muted">Clarify sections, check exclusions, or validate the hierarchy.</p>
+            </div>
+            <span className="status-chip status-chip--soft">
+              {sessionId ? "Ready" : "Upload to enable"}
+            </span>
+          </div>
+
+          <div className="chat-section">
+            {!sessionId ? (
+              <div className="chat-placeholder">
+                <p className="quick-title">Waiting for a PDF</p>
+                <p className="muted">Process a document to unlock grounded answers.</p>
+              </div>
+            ) : (
+              <div className="chat-window">
+                <div className="chat-messages">
+                  {messages.map((msg) => (
+                    <div key={msg.id} className={`chat-message chat-message--${msg.sender}`}>
+                      <div className="chat-bubble">
+                        <p>{msg.text}</p>
+                        {msg.references?.length > 0 && (
+                          <div className="references">
+                            <p className="references-title">References</p>
+                            <ul>
+                              {msg.references.map((ref, idx) => (
+                                <li key={idx}>
+                                  <a href={ref.url} target="_blank" rel="noreferrer">
+                                    {ref.text}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {messages.length === 0 && (
+                    <div className="placeholder-text">
+                      Ask about the detected outline, extraction confidence, or specific sections.
+                    </div>
+                  )}
+                </div>
+
+                {chatError && <div className="upload-error">{chatError}</div>}
+              </div>
+            )}
+
+            <div className="chat-input-container">
+              <input
+                type="text"
+                className="chat-input"
+                placeholder={
+                  sessionId
+                    ? "Ask about document structure, extraction process, or output format..."
+                    : "Process a PDF first to activate the assistant."
+                }
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && inputMessage.trim()) {
+                    handleSendMessage();
+                  }
+                }}
+              />
+              <button
+                className="chat-send-button"
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || !sessionId || isAsking}
+              >
+                {isAsking ? "Thinking…" : "Send"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel principles">
+          <div className="principles-grid">
+            <div className="principle">
+              <p className="quick-title">Stay minimal</p>
+              <p className="muted">Simple surfaces with clear actions keep focus on the file.</p>
+            </div>
+            <div className="principle">
+              <p className="quick-title">Keep hierarchy intact</p>
+              <p className="muted">Headings, tables, and paragraphs stay linked to their sections.</p>
+            </div>
+            <div className="principle">
+              <p className="quick-title">Export with confidence</p>
+              <p className="muted">Review previews before sending JSON downstream.</p>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

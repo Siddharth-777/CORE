@@ -53,7 +53,11 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    ```bash
    pip install -r requirements.txt
    ```
-4. (Optional) Run Ollama:
+4. Download the required spaCy English model:
+   ```bash
+   python -m spacy download en_core_web_sm
+   ```
+5. (Optional) Run Ollama:
    ```bash
    ollama run llama3
    ```
@@ -64,7 +68,7 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    ```bash
    uvicorn api_server:app --reload
    ```
-2. Send a POST request to `/hackrx/run`:
+2. Open `/hackrx/run` in a browser (GET) to see an example payload, or send a POST request to `/hackrx/run`:
    ```json
    {
        "documents": "<PDF-URL>",
@@ -73,6 +77,8 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    ```
    - **Header**: `Authorization: Bearer <token>`
    - **Response**: JSON with answers
+   - **401 from Cohere?** Ensure `COHERE_API_KEY` is set in `.env` and that the key has
+     access to the configured model (default: `command-r-plus`).
 
 ### LLM Script
 1. Ensure `query_data.json` is available.

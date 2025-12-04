@@ -1,19 +1,11 @@
 import fitz
 import json
 import os
-import nltk
 import unicodedata
 import re
 from collections import Counter
 from supabase_client import upload_to_supabase
 import tempfile
-
-try:
-    nltk.data.find("tokenizers/punkt")
-    nltk.data.find("tokenizers/punkt_tab")
-except LookupError:
-    nltk.download("punkt")
-    nltk.download("punkt_tab")
 
 DEBUG=False
 

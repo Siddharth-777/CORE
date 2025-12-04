@@ -1,14 +1,20 @@
+from functools import lru_cache
 import spacy
-from spacy.cli import download
 
-# Automatically download model if not present
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+
+@lru_cache(maxsize=1)
+def get_nlp():
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError as exc:
+        raise RuntimeError(
+            "SpaCy model 'en_core_web_sm' is not installed. "
+            "Install it with `python -m spacy download en_core_web_sm`."
+        ) from exc
+
 
 def extract_keywords(query: str):
+    nlp = get_nlp()
     doc = nlp(query)
     keywords = set()
 

@@ -1,18 +1,10 @@
-import fitz  
+import fitz
 import json
-import os
-import nltk
 import unicodedata
 import re
 from collections import Counter
 from supabase_client import upload_to_supabase
 import tempfile
-from supabase_client import upload_to_supabase
-
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
 
 DEBUG=False
 
@@ -393,7 +385,8 @@ def extract_formatted_blocks(pdf_path):
                 log(f"   Classification: {coverage_analysis['primary_classification']}")
                 log(f"   Priority: {coverage_analysis['max_priority']}")
                 log(f"   Flags: {[f['type'] + ':' + str(f['matches']) for f in coverage_analysis['flags']]}")
-                log(f"   Flagged as: {flagged_text.split('\\n')[0]}")
+                first_flag_line = flagged_text.split("\n", 1)[0]
+                log(f"   Flagged as: {first_flag_line}")
             else:
                 block["flagged_text"] = original_text
                 
@@ -425,7 +418,6 @@ def extract_formatted_blocks(pdf_path):
     return all_blocks
 
 def save_blocks_to_json(blocks):
-    # Save to temp file (not to disk)
     with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as tmp:
         json.dump(blocks, tmp, indent=2, ensure_ascii=False)
         tmp.flush()

@@ -38,6 +38,20 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+button {
+  font-family: inherit;
+}
+
+.shell-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1300px;
+  margin: 0 auto;
 }
 
 .brand {
@@ -512,6 +526,8 @@ button {
 @media (max-width: 960px) {
   .hero {
     grid-template-columns: 1fr;
+    padding: 14px 16px 22px;
+    max-width: none;
   }
 
   .panel-heading {

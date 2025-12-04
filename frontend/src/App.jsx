@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 function App() {
   const [activeTab, setActiveTab] = useState("upload");
@@ -10,11 +10,17 @@ function App() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [chatError, setChatError] = useState("");
   const [isProcessingStarted, setIsProcessingStarted] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [chatError, setChatError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
+  const [detectLoading, setDetectLoading] = useState(false);
+  const [extractLoading, setExtractLoading] = useState(false);
+  const [detectionPreview, setDetectionPreview] = useState("");
+  const [extractionPreview, setExtractionPreview] = useState("");
+  const [detectError, setDetectError] = useState("");
+  const [extractError, setExtractError] = useState("");
 
   const fileInputRef = useRef(null);
 
@@ -23,7 +29,7 @@ function App() {
       setMessages([
         {
           id: 1,
-          text: "Your PDF is ready. Ask me questions about coverage, exclusions, grace periods, waiting periods, and more. All answers are strictly grounded in the document.",
+          text: "Your PDF is parsed. Ask about coverage, exclusions, grace periods, or waiting periods — answers stay grounded in the document.",
           sender: "bot",
         },
       ]);
@@ -31,39 +37,78 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProcessingStarted]);
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
+  const validateFile = (file) => {
+    if (file.type !== "application/pdf") {
+      setUploadError("Please upload a PDF file only.");
+      return false;
+    }
+
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setUploadError("File size exceeds 50MB limit. Please upload a smaller file.");
+      return false;
+    }
+
+    return true;
   };
 
-  const handleFileClick = () => {
-    fileInputRef.current?.click();
+  const handleFileSelect = (file) => {
+    setUploadError("");
+
+    if (validateFile(file)) {
+      setUploadedFile(file);
+      setIsProcessingStarted(false);
+      setSessionId(null);
+      setMessages([]);
+      setDetectionPreview("");
+      setExtractionPreview("");
+    }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileInputChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setUploadedFile(file);
-      setUploadError("");
+      handleFileSelect(file);
     }
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
+
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      setUploadedFile(file);
-      setUploadError("");
+      handleFileSelect(file);
+    }
+  };
+
+  const handleChooseFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+    setUploadError("");
+    setIsProcessingStarted(false);
+    setMessages([]);
+    setSessionId(null);
+    setDetectionPreview("");
+    setExtractionPreview("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -101,12 +146,12 @@ function App() {
       const data = await res.json();
       setSessionId(data.session_id);
       setIsProcessingStarted(true);
-      setActiveTab("chatbot");
+      setActiveTab("detect");
 
       setMessages([
         {
           id: 1,
-          text: "I’ve parsed your PDF. Ask any policy question — I’ll answer using exact wording from the document wherever possible.",
+          text: "Your PDF has been uploaded successfully. I can assist you with questions about the structure extraction process, detected elements, or the output format. How may I assist you?",
           sender: "bot",
         },
       ]);
@@ -164,7 +209,7 @@ function App() {
         throw new Error(detail);
       }
 
-      const data = await res.json(); // { question, answer, references }
+      const data = await res.json();
 
       const botMessage = {
         id: Date.now() + 1,
@@ -182,214 +227,399 @@ function App() {
     }
   };
 
+  const requestBackendPreview = async (
+    question,
+    setter,
+    errorSetter,
+    loadingSetter
+  ) => {
+    if (!sessionId) {
+      errorSetter("Upload and process a PDF first.");
+      return;
+    }
+
+    errorSetter("");
+
+    try {
+      loadingSetter(true);
+      const res = await fetch(`${BACKEND_URL}/hackrx/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          question,
+        }),
+      });
+
+      if (!res.ok) {
+        let detail = `Backend error: ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detail);
+      }
+
+      const data = await res.json();
+      setter(data.answer || "No preview available yet.");
+    } catch (err) {
+      console.error(err);
+      errorSetter(err.message || "Failed to fetch preview.");
+    } finally {
+      loadingSetter(false);
+    }
+  };
+
+  const handleDetectPreview = () => {
+    requestBackendPreview(
+      "List the main headings and subheadings from this PDF with their nesting.",
+      setDetectionPreview,
+      setDetectError,
+      setDetectLoading
+    );
+  };
+
+  const handleExtractPreview = () => {
+    requestBackendPreview(
+      "Summarize the key content blocks under each detected section as bullet points.",
+      setExtractionPreview,
+      setExtractError,
+      setExtractLoading
+    );
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${Math.round((bytes / k ** i) * 100) / 100} ${sizes[i]}`;
+  };
+
   return (
-    <div className="app-root">
-      <div className="app-shell">
-        {/* Sidebar */}
+    <div className="app-shell">
+      <header className="shell-header">
+        <div className="shell-logo">
+          <span className="logo-icon" />
+          PDF Structure Extractor
+        </div>
+        <nav className="shell-header-actions">
+          <button className="ghost-button">Documentation</button>
+          <button className="ghost-button">API</button>
+          <button className="primary-button" disabled={!sessionId}>
+            Export JSON
+          </button>
+        </nav>
+      </header>
+
+      <div className="shell-body">
         <aside className="shell-sidebar">
-          <div className="logo-block">
-            <div className="logo-mark">HR</div>
-            <div className="logo-text">
-              <div className="logo-title">HackRx CORE</div>
-              <div className="logo-subtitle">Policy Intelligence Engine</div>
-            </div>
+          <div className="sidebar-section">
+            <p className="sidebar-label">WORKFLOW</p>
+            <button
+              className={`sidebar-item ${
+                activeTab === "upload" ? "sidebar-item--active" : ""
+              }`}
+              onClick={() => setActiveTab("upload")}
+            >
+              <span className="step-badge">1</span>
+              <span>Upload PDF</span>
+            </button>
+            <button
+              className={`sidebar-item ${
+                activeTab === "detect" ? "sidebar-item--active" : ""
+              }`}
+              onClick={() => setActiveTab("detect")}
+              disabled={!sessionId}
+            >
+              <span className="step-badge">2</span>
+              <span>Detect Structure</span>
+            </button>
+            <button
+              className={`sidebar-item ${
+                activeTab === "extract" ? "sidebar-item--active" : ""
+              }`}
+              onClick={() => setActiveTab("extract")}
+              disabled={!sessionId}
+            >
+              <span className="step-badge">3</span>
+              <span>Extract Content</span>
+            </button>
+            <button
+              className={`sidebar-item ${
+                activeTab === "chatbot" ? "sidebar-item--active" : ""
+              }`}
+              onClick={() => setActiveTab("chatbot")}
+            >
+              <span className="sidebar-icon sidebar-icon--chat" />
+              <span>Chatbot</span>
+            </button>
           </div>
-
-          <nav className="nav">
-            <div className="nav-group">
-              <div className="nav-label">Workflow</div>
-              <button
-                className={`nav-item ${
-                  activeTab === "upload" ? "nav-item--active" : ""
-                }`}
-                onClick={() => handleTabChange("upload")}
-              >
-                <span className="nav-dot" />
-                Upload PDF
-              </button>
-              <button
-                className={`nav-item ${
-                  activeTab === "structure" ? "nav-item--active" : ""
-                }`}
-                onClick={() => handleTabChange("structure")}
-              >
-                <span className="nav-dot" />
-                Detect Structure
-              </button>
-              <button
-                className={`nav-item ${
-                  activeTab === "content" ? "nav-item--active" : ""
-                }`}
-                onClick={() => handleTabChange("content")}
-              >
-                <span className="nav-dot" />
-                Extract Content
-              </button>
-              <button
-                className={`nav-item ${
-                  activeTab === "chatbot" ? "nav-item--active" : ""
-                }`}
-                onClick={() => handleTabChange("chatbot")}
-              >
-                <span className="nav-dot" />
-                Chatbot
-              </button>
-            </div>
-
-            <div className="nav-group nav-group--secondary">
-              <div className="nav-label">Backend</div>
-              <div className="nav-status">
-                <span className="status-dot status-dot--online" />
-                <span className="status-text">
-                  FastAPI at <code>http://localhost:8000</code>
-                </span>
-              </div>
-            </div>
-          </nav>
+          <div className="sidebar-section">
+            <p className="sidebar-label">SYSTEM</p>
+            <button
+              className={`sidebar-item ${
+                activeTab === "settings" ? "sidebar-item--active" : ""
+              }`}
+              onClick={() => setActiveTab("settings")}
+            >
+              <span className="sidebar-icon sidebar-icon--settings" />
+              <span>Settings</span>
+            </button>
+            <button className="sidebar-item" disabled>
+              <span className="sidebar-icon sidebar-icon--history" />
+              <span>History</span>
+            </button>
+          </div>
         </aside>
 
-        {/* Main body */}
-        <div className="shell-body">
-          {/* Header */}
-          <header className="shell-header">
-            <div>
-              <h1 className="page-title">HackRx CORE Assistant</h1>
-              <p className="page-subtitle">
-                Upload an insurance policy PDF once, then query it using a
-                policy-aware assistant backed by your FastAPI service.
-              </p>
-            </div>
-          </header>
-
-          {/* Content area */}
-          <main className="shell-content">
-            {activeTab === "upload" && (
-              <section className="panel panel-main">
-                <div className="panel-header">
-                  <h2>1. Upload Policy PDF</h2>
-                  <p>Drop a health-insurance policy PDF to begin analysis.</p>
-                </div>
-
-                <div
-                  className={`upload-dropzone ${
-                    isDragging ? "upload-dropzone--dragging" : ""
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={handleFileClick}
-                >
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    onChange={handleFileChange}
-                  />
-                  <div className="dropzone-inner">
-                    <div className="dropzone-icon" />
-                    <div className="dropzone-text">
-                      <strong>
-                        {uploadedFile
-                          ? uploadedFile.name
-                          : "Click to browse or drag & drop PDF"}
-                      </strong>
-                      <span>Only policy PDFs are supported</span>
-                    </div>
+        <main className="shell-main">
+          {activeTab === "upload" && (
+            <>
+              <section className="shell-hero">
+                <div>
+                  <div className="eyebrow-container">
+                    <span className="eyebrow">Step 1: Upload</span>
+                    <span
+                      className={`status-badge ${
+                        uploadedFile ? "status-badge--success" : "status-badge--ready"
+                      }`}
+                    >
+                      {uploadedFile ? "File Ready" : "Ready"}
+                    </span>
                   </div>
+                  <h1>Upload your PDF document</h1>
+                  <p className="hero-copy">
+                    Companies have lots of PDFs that are messy and unstructured. These files
+                    have headings, subheadings, tables, and different formats. Upload your PDF
+                    to begin the extraction process.
+                  </p>
                 </div>
-
-                {uploadError && (
-                  <div className="alert alert--error">{uploadError}</div>
-                )}
-
-                <div className="upload-actions">
-                  <button
-                    className="file-action-button file-action-button--primary"
-                    onClick={handleProcessFile}
-                    disabled={isUploading || !uploadedFile}
+              </section>
+              <div className="upload-area">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileInputChange}
+                  accept=".pdf,application/pdf"
+                  style={{ display: "none" }}
+                />
+                {!uploadedFile ? (
+                  <div
+                    className={`upload-zone ${isDragging ? "upload-zone--dragging" : ""}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={(e) => {
+                      if (e.target.tagName !== "BUTTON") {
+                        handleChooseFileClick();
+                      }
+                    }}
                   >
-                    {isUploading ? "Processing…" : "Process File"}
+                    <div className="upload-icon" />
+                    <h3>Drag & drop your PDF here</h3>
+                    <p>or click to browse files</p>
+                    <button
+                      className="upload-button"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleChooseFileClick();
+                      }}
+                    >
+                      Choose File
+                    </button>
+                    <p className="upload-hint">Supports PDF files up to 50MB</p>
+                  </div>
+                ) : (
+                  <div className="uploaded-file-card">
+                    <div className="file-info">
+                      <div className="file-icon">
+                        <div className="file-icon-pdf" />
+                      </div>
+                      <div className="file-details">
+                        <h3 className="file-name">{uploadedFile.name}</h3>
+                        <p className="file-size">{formatFileSize(uploadedFile.size)}</p>
+                      </div>
+                    </div>
+                    <div className="file-actions">
+                      <button
+                        className="file-action-button file-action-button--primary"
+                        onClick={handleProcessFile}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? "Processing…" : "Process File"}
+                      </button>
+                      <button className="file-action-button" onClick={handleRemoveFile}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {uploadError && <div className="upload-error">{uploadError}</div>}
+              </div>
+            </>
+          )}
+
+          {activeTab === "detect" && (
+            <>
+              <section className="shell-hero">
+                <div>
+                  <div className="eyebrow-container">
+                    <span className="eyebrow">Step 2: Detection</span>
+                    <span className="status-badge status-badge--processing">
+                      {sessionId ? "Ready" : "Waiting"}
+                    </span>
+                  </div>
+                  <h1>Detect headings and subheadings</h1>
+                  <p className="hero-copy">
+                    The system automatically identifies the hierarchical structure of your PDF. It
+                    detects headings, subheadings, and their relationships to build a logical
+                    document tree.
+                  </p>
+                </div>
+              </section>
+              <div className="progress-section">
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: sessionId ? "100%" : "35%" }} />
+                </div>
+                <p className="progress-text">
+                  {sessionId
+                    ? "Document parsed. Pull a preview of detected headings."
+                    : "Upload and process your PDF to start detection."}
+                </p>
+                <div className="preview-actions">
+                  <button
+                    className="primary-button"
+                    onClick={handleDetectPreview}
+                    disabled={!sessionId || detectLoading}
+                  >
+                    {detectLoading ? "Fetching…" : "Fetch detected outline"}
                   </button>
-                  <span className="upload-hint">
-                    Once processed, the Chatbot tab will activate for
-                    document-grounded Q&amp;A.
-                  </span>
+                  <button className="ghost-button" onClick={() => setActiveTab("extract")} disabled={!sessionId}>
+                    Go to Extraction
+                  </button>
                 </div>
-
-                <div className="step-grid">
-                  <div className="step-card">
-                    <div className="step-number">1</div>
-                    <div className="step-content">
-                      <h3>Ingest &amp; Normalize</h3>
-                      <p>
-                        CORE reads raw PDF, analyzes fonts, layout and visual
-                        hierarchy for policy-grade structure.
-                      </p>
+                {detectError && <div className="upload-error">{detectError}</div>}
+              </div>
+              <div className="detection-preview">
+                <h3 className="preview-title">Detected Structure Preview</h3>
+                <div className="structure-tree">
+                  {detectionPreview ? (
+                    detectionPreview.split("\n").map((line, idx) => (
+                      <div key={idx} className="tree-item">
+                        {line}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="placeholder-text">
+                      No preview yet. Fetch the outline once your PDF is processed.
                     </div>
-                  </div>
-                  <div className="step-card">
-                    <div className="step-number">2</div>
-                    <div className="step-content">
-                      <h3>Detect Coverage Logic</h3>
-                      <p>
-                        Section headings, exclusions, definitions and waiting
-                        periods are tagged and grouped.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="step-card">
-                    <div className="step-number">3</div>
-                    <div className="step-content">
-                      <h3>Ask Anything</h3>
-                      <p>
-                        Use the Chatbot panel to query grace periods,
-                        maternity, moratorium, and more – grounded only in your
-                        policy.
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              </section>
-            )}
+              </div>
+            </>
+          )}
 
-            {activeTab === "structure" && (
-              <section className="panel panel-main">
-                <div className="panel-header">
-                  <h2>2. Detect Structure</h2>
-                  <p>
-                    This view can later show the reconstructed section tree and
-                    headings. For now, upload and process a PDF in step 1, then
-                    explore via the Chatbot tab.
+          {activeTab === "extract" && (
+            <>
+              <section className="shell-hero">
+                <div>
+                  <div className="eyebrow-container">
+                    <span className="eyebrow">Step 3: Extraction</span>
+                    <span className="status-badge status-badge--processing">
+                      {sessionId ? "Ready" : "Waiting"}
+                    </span>
+                  </div>
+                  <h1>Identify content blocks</h1>
+                  <p className="hero-copy">
+                    Content blocks under each section are identified and organized. The system
+                    maintains logical nesting to preserve the original document layout and structure.
                   </p>
                 </div>
               </section>
-            )}
+              <div className="progress-section">
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: sessionId ? "100%" : "35%" }} />
+                </div>
+                <p className="progress-text">
+                  {sessionId
+                    ? "Pull a summarized view of extracted content blocks."
+                    : "Upload and process your PDF to extract content."}
+                </p>
+                <div className="preview-actions">
+                  <button
+                    className="primary-button"
+                    onClick={handleExtractPreview}
+                    disabled={!sessionId || extractLoading}
+                  >
+                    {extractLoading ? "Fetching…" : "Fetch extraction summary"}
+                  </button>
+                  <button className="ghost-button" onClick={() => setActiveTab("chatbot")}>Go to Chatbot</button>
+                </div>
+                {extractError && <div className="upload-error">{extractError}</div>}
+              </div>
+              <div className="detection-preview">
+                <h3 className="preview-title">Extracted Content Overview</h3>
+                <div className="structure-tree">
+                  {extractionPreview ? (
+                    extractionPreview.split("\n").map((line, idx) => (
+                      <div key={idx} className="tree-item">
+                        {line}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="placeholder-text">
+                      No extraction summary yet. Fetch it once your PDF is processed.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
-            {activeTab === "content" && (
-              <section className="panel panel-main">
-                <div className="panel-header">
-                  <h2>3. Extract Content</h2>
-                  <p>
-                    This view can display normalized JSON of paragraphs,
-                    coverage flags and exclusions extracted from the policy.
+          {activeTab === "chatbot" && (
+            <>
+              <section className="shell-hero">
+                <div>
+                  <div className="eyebrow-container">
+                    <span className="eyebrow">Assistant</span>
+                    <span
+                      className={`status-badge ${
+                        isProcessingStarted ? "status-badge--success" : "status-badge--ready"
+                      }`}
+                    >
+                      {isProcessingStarted ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <h1>Document Analysis Assistant</h1>
+                  <p className="hero-copy">
+                    Get assistance with PDF structure extraction, ask questions about detected elements,
+                    understand the extraction process, or learn about the output format. The assistant is
+                    available after you process a document.
                   </p>
                 </div>
               </section>
-            )}
 
-            {activeTab === "chatbot" && (
-              <section className="panel panel-main chatbot-panel">
-                <div className="panel-header">
-                  <h2>4. Chat with the Policy</h2>
-                  <p>
-                    Ask precise policy questions. Answers are generated using
-                    your policy PDF and Groq, with exact wording wherever
-                    possible.
-                  </p>
+              {!isProcessingStarted ? (
+                <div className="chatbot-inactive">
+                  <div className="inactive-message">
+                    <div className="inactive-icon" />
+                    <h3>Assistant Not Available</h3>
+                    <p>Please upload a PDF file and click "Process File" to activate the assistant.</p>
+                    <button
+                      className="primary-button"
+                      onClick={() => setActiveTab("upload")}
+                      style={{ marginTop: "20px" }}
+                    >
+                      Go to Upload
+                    </button>
+                  </div>
                 </div>
-
-                <div className="chatbot-layout">
+              ) : (
+                <div className="chatbot-container">
                   <div className="chat-messages">
                     {messages.length === 0 ? (
                       <div className="chat-message chat-message--bot">
@@ -397,10 +627,7 @@ function App() {
                           <div className="avatar avatar--bot" />
                         </div>
                         <div className="chat-content">
-                          <p>
-                            Upload and process a PDF in the first tab, then
-                            come back here to start asking questions.
-                          </p>
+                          <p>Initializing assistant...</p>
                         </div>
                       </div>
                     ) : (
@@ -408,9 +635,7 @@ function App() {
                         <div
                           key={message.id}
                           className={`chat-message ${
-                            message.sender === "bot"
-                              ? "chat-message--bot"
-                              : "chat-message--user"
+                            message.sender === "bot" ? "chat-message--bot" : "chat-message--user"
                           }`}
                         >
                           <div className="chat-avatar">
@@ -422,41 +647,32 @@ function App() {
                           </div>
                           <div className="chat-content">
                             <p>{message.text}</p>
-                            {message.sender === "bot" &&
-                              message.references &&
-                              message.references.length > 0 && (
-                                <div className="chat-refs">
-                                  <strong>References:</strong>
-                                  <ul>
-                                    {message.references
-                                      .slice(0, 4)
-                                      .map((ref, idx) => (
-                                        <li key={idx}>
-                                          Page {ref.page} – {ref.section}
-                                        </li>
-                                      ))}
-                                  </ul>
-                                </div>
-                              )}
+                            {message.sender === "bot" && message.references && message.references.length > 0 && (
+                              <div className="chat-refs">
+                                <strong>References:</strong>
+                                <ul>
+                                  {message.references.slice(0, 4).map((ref, idx) => (
+                                    <li key={idx}>
+                                      Page {ref.page} – {ref.section}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))
                     )}
 
-                    {chatError && (
-                      <div className="alert alert--error alert--compact">
-                        {chatError}
-                      </div>
-                    )}
+                    {chatError && <div className="upload-error">{chatError}</div>}
                   </div>
-
-                  <div className="chat-input-row">
+                  <div className="chat-input-container">
                     <input
                       type="text"
                       className="chat-input"
                       placeholder={
                         sessionId
-                          ? "Ask about grace periods, exclusions, waiting periods, etc…"
+                          ? "Ask about document structure, extraction process, or output format..."
                           : "Process a PDF first to activate the assistant."
                       }
                       value={inputMessage}
@@ -470,22 +686,86 @@ function App() {
                     <button
                       className="chat-send-button"
                       onClick={handleSendMessage}
-                      disabled={
-                        !inputMessage.trim() || !sessionId || isAsking
-                      }
+                      disabled={!inputMessage.trim() || !sessionId || isAsking}
                     >
                       {isAsking ? "Thinking…" : "Send"}
                     </button>
                   </div>
-                  <p className="chat-hint">
-                    Tip: Press <kbd>Enter</kbd> to send once your PDF is
-                    processed.
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === "settings" && (
+            <>
+              <section className="shell-hero">
+                <div>
+                  <p className="eyebrow">Configuration</p>
+                  <h1>System settings</h1>
+                  <p className="hero-copy">
+                    Configure detection sensitivity, output format preferences, and processing options.
                   </p>
                 </div>
               </section>
-            )}
-          </main>
-        </div>
+              <div className="settings-grid">
+                <div className="setting-card">
+                  <h3>Detection Sensitivity</h3>
+                  <div className="slider-container">
+                    <input type="range" min="1" max="10" defaultValue="7" className="slider" />
+                    <div className="slider-labels">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="setting-card">
+                  <h3>Output Format</h3>
+                  <div className="radio-group">
+                    <label className="radio-option">
+                      <input type="radio" name="format" defaultChecked />
+                      <span>Pretty JSON</span>
+                    </label>
+                    <label className="radio-option">
+                      <input type="radio" name="format" />
+                      <span>Minified JSON</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <section className="card-grid">
+            <article className="card-large">
+              <div className="card-header">
+                <h2>Problem Statement</h2>
+              </div>
+              <p className="card-description">
+                Build a system that automatically extracts the hierarchical structure of a PDF and converts
+                it into an organized JSON representation.
+              </p>
+              <div className="requirements-section">
+                <h3 className="requirements-title">The system must:</h3>
+                <ul className="requirements-list">
+                  <li>Detect headings and subheadings</li>
+                  <li>Identify content blocks under each section</li>
+                  <li>Maintain logical nesting</li>
+                  <li>Output structured data that reflects the original document layout</li>
+                </ul>
+              </div>
+            </article>
+            <article className="card card-feature">
+              <div className="card-icon card-icon--document" />
+              <h3>Document Processing</h3>
+              <p>Upload and process unstructured PDF documents with mixed formats and layouts.</p>
+            </article>
+            <article className="card card-feature">
+              <div className="card-icon card-icon--ai" />
+              <h3>Structure Recognition</h3>
+              <p>AI-powered detection of document hierarchy and relationships between sections.</p>
+            </article>
+          </section>
+        </main>
       </div>
     </div>
   );

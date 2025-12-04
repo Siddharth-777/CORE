@@ -22,7 +22,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 app = FastAPI()
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama3-70b-8192"
+GROQ_MODEL = "llama-3.1-8b-instant"
 
 
 def get_existing_parsed_data(pdf_url: str):
@@ -32,7 +32,7 @@ def get_existing_parsed_data(pdf_url: str):
         if res.data:
             return res.data[0]
     except Exception as e:
-        print(f"❌ Cache lookup error: {e}")
+        print(f"Cache lookup error: {e}")
     return None
 
 
@@ -45,7 +45,7 @@ def save_processed_doc(pdf_url: str, pdf_storage_path: str, json_url: str):
             "json_url": json_url
         }).execute()
     except Exception as e:
-        print(f"❌ Cache save error: {e}")
+        print(f"Cache save error: {e}")
 
 
 @app.get("/")
@@ -180,13 +180,13 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
     try:
         step0 = time.time()
         existing = get_existing_parsed_data(req.documents)
-        print(f"⏱ Cache check: {time.time() - step0:.2f} sec")
+        print(f"Cache check: {time.time() - step0:.2f} sec")
 
         if existing:
-            print("✅ Using cached parsed data from Supabase")
+            print("Using cached parsed data from Supabase")
             step_json = time.time()
             blocks = requests.get(existing["json_url"]).json()
-            print(f"⏱ JSON fetch from cache: {time.time() - step_json:.2f} sec")
+            print(f"JSON fetch from cache: {time.time() - step_json:.2f} sec")
         else:
             step1 = time.time()
             pdf_url = req.documents
@@ -198,12 +198,12 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
                 tmp_pdf.flush()
                 upload_to_supabase("doc-processing", tmp_pdf.name, "pdf/input.pdf")
                 pdf_path = tmp_pdf.name
-            print(f"⏱ PDF download + upload: {time.time() - step1:.2f} sec")
+            print(f"PDF download + upload: {time.time() - step1:.2f} sec")
 
             step2 = time.time()
             blocks = extract_formatted_blocks(pdf_path)
             save_blocks_to_json(blocks)
-            print(f"⏱ PDF parsing + JSON save: {time.time() - step2:.2f} sec")
+            print(f"PDF parsing + JSON save: {time.time() - step2:.2f} sec")
 
             json_url = get_public_url("doc-processing", "json/reconstructed_paragraphs.json")
             save_processed_doc(req.documents, "pdf/input.pdf", json_url)
@@ -235,7 +235,7 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             result = await query_groq(prompt)
 
             if ("Answer not found" in result) or not re.search(r'\d', result):
-                print(f"⚠️ Fallback triggered for Q{idx+1}")
+                print(f"Fallback triggered for Q{idx+1}")
                 full_context = format_context_with_headers(blocks)
                 prompt_full = (
                     "You are an assistant answering questions based only on the provided document.\n"
@@ -248,15 +248,15 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
 
             references = format_reference(matched, question=question)
             ans = f"{result.strip()} Reference : {references}"
-            print(f"✅ Q{idx+1} done in {time.time() - q_start:.2f} sec")
+            print(f"Q{idx+1} done in {time.time() - q_start:.2f} sec")
             return ans
 
         step4 = time.time()
         answers = await asyncio.gather(
             *[process_question(i, q) for i, q in enumerate(req.questions)]
         )
-        print(f"⏱ All Qs processed in parallel: {time.time() - step4:.2f} sec")
-        print(f"⏱ TOTAL request time: {time.time() - start_time:.2f} sec")
+        print(f"All Qs processed in parallel: {time.time() - step4:.2f} sec")
+        print(f"TOTAL request time: {time.time() - start_time:.2f} sec")
         return {"answers": answers}
 
     except HTTPException:

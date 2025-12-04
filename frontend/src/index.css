@@ -18,10 +18,7 @@ body {
   color: #0f172a;
 }
 
-button {
-  font-family: inherit;
-}
-
+/* Layout framing */
 .app-shell {
   min-height: 100vh;
   display: flex;
@@ -39,6 +36,20 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+button {
+  font-family: inherit;
+}
+
+.shell-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1300px;
+  margin: 0 auto;
 }
 
 .shell-logo {
@@ -107,6 +118,12 @@ button {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: calc(100vh - 60px);
+  gap: 18px;
+  padding: 18px 22px 26px;
+  max-width: 1300px;
+  width: 100%;
+  margin: 0 auto;
+  align-items: start;
 }
 
 .shell-sidebar {
@@ -116,6 +133,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  position: sticky;
+  top: 86px;
 }
 
 .sidebar-section {
@@ -195,8 +216,11 @@ button {
 }
 
 .shell-main {
-  padding: 22px 26px 30px;
+  padding: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .shell-hero {
@@ -270,7 +294,6 @@ button {
   border-radius: 14px;
   padding: 16px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  margin-bottom: 16px;
 }
 
 .upload-zone {
@@ -318,6 +341,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  flex-wrap: wrap;
 }
 
 .file-info {
@@ -622,7 +646,7 @@ button {
 .card-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .card {
@@ -690,16 +714,19 @@ button {
 @media (max-width: 1100px) {
   .shell-body {
     grid-template-columns: 1fr;
+    padding: 14px 16px 22px;
+    max-width: none;
   }
 
   .shell-sidebar {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 10px;
+    position: static;
   }
 
   .shell-main {
-    padding: 16px;
+    padding: 0;
   }
 
   .card-grid {

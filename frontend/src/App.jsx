@@ -301,17 +301,19 @@ function App() {
   return (
     <div className="app-shell">
       <header className="shell-header">
-        <div className="shell-logo">
-          <span className="logo-icon" />
-          PDF Structure Extractor
+        <div className="shell-header-inner">
+          <div className="shell-logo">
+            <span className="logo-icon" />
+            PDF Structure Extractor
+          </div>
+          <nav className="shell-header-actions">
+            <button className="ghost-button">Documentation</button>
+            <button className="ghost-button">API</button>
+            <button className="primary-button" disabled={!sessionId}>
+              Export JSON
+            </button>
+          </nav>
         </div>
-        <nav className="shell-header-actions">
-          <button className="ghost-button">Documentation</button>
-          <button className="ghost-button">API</button>
-          <button className="primary-button" disabled={!sessionId}>
-            Export JSON
-          </button>
-        </nav>
       </header>
 
       <div className="shell-body">

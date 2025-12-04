@@ -14,7 +14,7 @@ import time
 
 from parser import extract_formatted_blocks, save_blocks_to_json
 from semantic_matcher import match_blocks
-from supabase_client import upload_to_supabase, supabase, get_public_url
+from supabase_client import upload_to_supabase, get_public_url, get_supabase_client
 
 load_dotenv(dotenv_path=".env", encoding="utf-8")
 
@@ -32,6 +32,7 @@ COHERE_MODEL = "command-r-plus"
 def get_existing_parsed_data(pdf_url: str):
     """Check Supabase for an already processed document."""
     try:
+        supabase = get_supabase_client()
         res = supabase.table("processed_docs").select("*").eq("url", pdf_url).execute()
         if res.data:
             return res.data[0]
@@ -43,6 +44,7 @@ def get_existing_parsed_data(pdf_url: str):
 def save_processed_doc(pdf_url: str, pdf_storage_path: str, json_url: str):
     """Store processed document info in Supabase."""
     try:
+        supabase = get_supabase_client()
         supabase.table("processed_docs").insert({
             "url": pdf_url,
             "pdf_storage_path": pdf_storage_path,
@@ -63,6 +65,21 @@ async def health_check():
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "CORE API"}
+
+
+@app.get("/hackrx/run")
+async def run_hackrx_get():
+    """Provide clear guidance when the endpoint is called with GET."""
+    return {
+        "detail": "Use POST /hackrx/run with a JSON body",
+        "example": {
+            "documents": "https://example.com/sample.pdf",
+            "questions": [
+                "What are the coverage exclusions?",
+                "How are claims processed?"
+            ]
+        }
+    }
 
 
 # --------------------------
@@ -152,11 +169,25 @@ async def query_cohere(prompt: str):
                     text = await resp.text()
                     print("Raw response:", text)
                     return "Error: Failed to parse Cohere response"
-            else:
-                print("Cohere Error:", resp.status)
+
+            # Explicit guidance for auth failures so users fix their keys instead of
+            # seeing opaque errors inside the answers list.
+            if resp.status in (401, 403):
                 text = await resp.text()
-                print("Raw response:", text)
-                return f"Error: Cohere returned status {resp.status}"
+                print("Cohere auth error:", resp.status, text)
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "Cohere rejected the request (unauthorized). "
+                        "Verify COHERE_API_KEY in your .env and confirm the key has access "
+                        f"to the '{COHERE_MODEL}' model."
+                    ),
+                )
+
+            print("Cohere Error:", resp.status)
+            text = await resp.text()
+            print("Raw response:", text)
+            return f"Error: Cohere returned status {resp.status}"
 
 
 # --------------------------
@@ -258,6 +289,8 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
         print(f"⏱ TOTAL request time: {time.time() - start_time:.2f} sec")
         return {"answers": answers}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

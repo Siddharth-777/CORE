@@ -224,12 +224,29 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             context = format_context_with_headers(matched)
 
             prompt = (
-                "You are an assistant answering questions based only on the provided document.\n"
-                "Quote the relevant policy wording exactly where possible.\n"
-                "Do NOT add page numbers, section numbers, or extra details not in the document.\n"
-                "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
+                "You are an assistant that must answer strictly and exclusively from the content contained in the provided document.\n"
+                "Your entire reasoning and output must remain fully grounded in the document and nowhere else.\n\n"
+                "NON-NEGOTIABLE RULES (the assistant must obey these exactly):\n"
+                "1. You may use ONLY information explicitly written in the document.\n"
+                "2. If you refer to information from the document, you must quote the exact wording with no alterations.\n"
+                "3. You must not add, assume, infer, interpret, reformulate, or rely on any outside knowledge.\n"
+                "4. You must not summarize unless the summary is composed entirely of quotes from the document.\n"
+                "5. You must not fabricate details, metadata, page numbers, section labels, rationale, or context not present in the document.\n"
+                "6. You must not attempt to explain, clarify, or expand beyond what the document directly states.\n"
+                "7. If the answer is not explicitly present in the document, you must reply with EXACTLY:\n"
+                "   Answer not found in the provided document.\n"
+                "8. No alternative phrasing, no elaboration, and no additional commentary is allowed beyond the answer itself.\n\n"
+                "OUTPUT REQUIREMENTS:\n"
+                "- Your answer must follow all rules above without exception.\n"
+                "- Your answer must be as concise as possible while strictly quoting the document when needed.\n"
+                "- If multiple sections of the document are relevant, quote them exactly and only.\n\n"
+                "TASK:\n"
+                "Answer the question strictly using only the provided document.\n\n"
                 f"Document:\n{context}\n\n"
-                f"Question: {question}\nAnswer:"
+                f"Question: {question}\n"
+                "Answer:\n"
+                "- Provide the answer using exact quotes from the document.\n"
+                "- If no answer is available, respond exactly with: Answer not found in the provided document."
             )
 
             result = await query_groq(prompt)
@@ -238,11 +255,29 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
                 print(f"Fallback triggered for Q{idx+1}")
                 full_context = format_context_with_headers(blocks)
                 prompt_full = (
-                    "You are an assistant answering questions based only on the provided document.\n"
-                    "Quote the relevant policy wording exactly where possible.\n"
-                    "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
+                    "You are an assistant that must answer strictly and exclusively from the content contained in the provided document.\n"
+                    "Your entire reasoning and output must remain fully grounded in the document and nowhere else.\n\n"
+                    "NON-NEGOTIABLE RULES (the assistant must obey these exactly):\n"
+                    "1. You may use ONLY information explicitly written in the document.\n"
+                    "2. If you refer to information from the document, you must quote the exact wording with no alterations.\n"
+                    "3. You must not add, assume, infer, interpret, reformulate, or rely on any outside knowledge.\n"
+                    "4. You must not summarize unless the summary is composed entirely of quotes from the document.\n"
+                    "5. You must not fabricate details, metadata, page numbers, section labels, rationale, or context not present in the document.\n"
+                    "6. You must not attempt to explain, clarify, or expand beyond what the document directly states.\n"
+                    "7. If the answer is not explicitly present in the document, you must reply with EXACTLY:\n"
+                    "   Answer not found in the provided document.\n"
+                    "8. No alternative phrasing, no elaboration, and no additional commentary is allowed beyond the answer itself.\n\n"
+                    "OUTPUT REQUIREMENTS:\n"
+                    "- Your answer must follow all rules above without exception.\n"
+                    "- Your answer must be as concise as possible while strictly quoting the document when needed.\n"
+                    "- If multiple sections of the document are relevant, quote them exactly and only.\n\n"
+                    "TASK:\n"
+                    "Answer the question strictly using only the provided document.\n\n"
                     f"Document:\n{full_context}\n\n"
-                    f"Question: {question}\nAnswer:"
+                    f"Question: {question}\n"
+                    "Answer:\n"
+                    "- Provide the answer using exact quotes from the document.\n"
+                    "- If no answer is available, respond exactly with: Answer not found in the provided document."
                 )
                 result = await query_groq(prompt_full)
 

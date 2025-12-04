@@ -1,4 +1,3 @@
-# api_server.py
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 import uvicorn
@@ -26,11 +25,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama3-70b-8192"
 
 
-# --------------------------
-# Cache helpers
-# --------------------------
 def get_existing_parsed_data(pdf_url: str):
-    """Check Supabase for an already processed document."""
     try:
         supabase = get_supabase_client()
         res = supabase.table("processed_docs").select("*").eq("url", pdf_url).execute()
@@ -42,7 +37,6 @@ def get_existing_parsed_data(pdf_url: str):
 
 
 def save_processed_doc(pdf_url: str, pdf_storage_path: str, json_url: str):
-    """Store processed document info in Supabase."""
     try:
         supabase = get_supabase_client()
         supabase.table("processed_docs").insert({
@@ -54,9 +48,6 @@ def save_processed_doc(pdf_url: str, pdf_storage_path: str, json_url: str):
         print(f"❌ Cache save error: {e}")
 
 
-# --------------------------
-# API health checks
-# --------------------------
 @app.get("/")
 async def health_check():
     return {"status": "healthy", "message": "CORE API is running"}
@@ -69,7 +60,6 @@ async def health():
 
 @app.get("/hackrx/run")
 async def run_hackrx_get():
-    """Provide clear guidance when the endpoint is called with GET."""
     return {
         "detail": "Use POST /hackrx/run with a JSON body",
         "example": {
@@ -82,17 +72,11 @@ async def run_hackrx_get():
     }
 
 
-# --------------------------
-# Request model
-# --------------------------
 class HackRxRequest(BaseModel):
     documents: str
     questions: list[str]
 
 
-# --------------------------
-# Formatting helpers
-# --------------------------
 def format_context_with_headers(chunks):
     formatted_context = ""
     current_header = None
@@ -144,9 +128,6 @@ def format_reference(blocks, max_blocks=3, question=""):
     return ", ".join(references) if references else "No relevant sections found"
 
 
-# --------------------------
-# Async Groq query
-# --------------------------
 async def query_groq(prompt: str):
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -171,9 +152,6 @@ async def query_groq(prompt: str):
                     text = await resp.text()
                     print("Raw response:", text)
                     return "Error: Failed to parse Groq response"
-
-            # Explicit guidance for auth failures so users fix their keys instead of
-            # seeing opaque errors inside the answers list.
             if resp.status in (401, 403):
                 text = await resp.text()
                 print("Groq auth error:", resp.status, text)
@@ -192,9 +170,6 @@ async def query_groq(prompt: str):
             return f"Error: Groq returned status {resp.status}"
 
 
-# --------------------------
-# Main endpoint
-# --------------------------
 @app.post("/hackrx/run")
 async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
     start_time = time.time()
@@ -203,7 +178,6 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
         raise HTTPException(status_code=500, detail="Groq API key not set")
 
     try:
-        # Step 0: Check if already processed
         step0 = time.time()
         existing = get_existing_parsed_data(req.documents)
         print(f"⏱ Cache check: {time.time() - step0:.2f} sec")
@@ -214,7 +188,6 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             blocks = requests.get(existing["json_url"]).json()
             print(f"⏱ JSON fetch from cache: {time.time() - step_json:.2f} sec")
         else:
-            # Step 1: Download & upload PDF
             step1 = time.time()
             pdf_url = req.documents
             pdf_data = requests.get(pdf_url)
@@ -227,17 +200,14 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
                 pdf_path = tmp_pdf.name
             print(f"⏱ PDF download + upload: {time.time() - step1:.2f} sec")
 
-            # Step 2: Parse
             step2 = time.time()
             blocks = extract_formatted_blocks(pdf_path)
             save_blocks_to_json(blocks)
             print(f"⏱ PDF parsing + JSON save: {time.time() - step2:.2f} sec")
 
-            # Step 3: Save mapping in Supabase
             json_url = get_public_url("doc-processing", "json/reconstructed_paragraphs.json")
             save_processed_doc(req.documents, "pdf/input.pdf", json_url)
 
-        # Step 4: Process all questions in parallel
         async def process_question(idx, question):
             q_start = time.time()
             upload_filename = f"json/query_data_q{idx + 1}.json"
@@ -247,13 +217,12 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
                 query=question,
                 bucket_name="doc-processing",
                 upload_filename=upload_filename,
-                top_n=8,  # Expanded retrieval
+                top_n=8,
                 include_neighbors=True
             )
 
             context = format_context_with_headers(matched)
 
-            # First pass prompt
             prompt = (
                 "You are an assistant answering questions based only on the provided document.\n"
                 "Quote the relevant policy wording exactly where possible.\n"
@@ -265,7 +234,6 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
 
             result = await query_groq(prompt)
 
-            # Fallback if no answer found or missing key terms/numbers
             if ("Answer not found" in result) or not re.search(r'\d', result):
                 print(f"⚠️ Fallback triggered for Q{idx+1}")
                 full_context = format_context_with_headers(blocks)
@@ -297,9 +265,6 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# --------------------------
-# Run server
-# --------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

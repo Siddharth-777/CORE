@@ -1,6 +1,5 @@
 import fitz
 import json
-import os
 import unicodedata
 import re
 from collections import Counter
@@ -419,7 +418,6 @@ def extract_formatted_blocks(pdf_path):
     return all_blocks
 
 def save_blocks_to_json(blocks):
-    # Save to temp file (not to disk)
     with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as tmp:
         json.dump(blocks, tmp, indent=2, ensure_ascii=False)
         tmp.flush()

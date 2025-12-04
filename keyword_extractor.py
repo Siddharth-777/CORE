@@ -4,7 +4,6 @@ import spacy
 
 @lru_cache(maxsize=1)
 def get_nlp():
-    """Load the spaCy model lazily and raise a clear error if missing."""
     try:
         return spacy.load("en_core_web_sm")
     except OSError as exc:

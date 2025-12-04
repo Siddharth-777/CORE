@@ -12,7 +12,7 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
 - **Header Detection**: Organizes content with hierarchical headers based on font size, color, and text patterns.
 - **Coverage Analysis**: Flags coverage-related terms (e.g., inclusions, exclusions) with priority scoring.
 - **Semantic Matching**: Matches queries to document sections and uploads results to Supabase.
-- **LLM Integration**: Generates answers using Cohere or local Ollama models.
+- **LLM Integration**: Generates answers using Groq or local Ollama models.
 - **PDF Reconstruction**: Creates a text-only PDF with headers and page numbers using ReportLab.
 - **Cloud Storage**: Stores JSON and PDF outputs in Supabase with public URLs.
 
@@ -34,7 +34,7 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
   ```bash
   SUPABASE_URL=<your-supabase-url>
   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-key>
-  COHERE_API_KEY=<your-cohere-api-key>
+  GROQ_API_KEY=<your-groq-api-key>
   ```
 - (Optional) Local Ollama server for `llm.py`
 
@@ -77,8 +77,8 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    ```
    - **Header**: `Authorization: Bearer <token>`
    - **Response**: JSON with answers
-   - **401 from Cohere?** Ensure `COHERE_API_KEY` is set in `.env` and that the key has
-     access to the configured model (default: `command-r-plus`).
+  - **401 from Groq?** Ensure `GROQ_API_KEY` is set in `.env` and that the key has
+    access to the configured model (default: `llama3-70b-8192`).
 
 ### LLM Script
 1. Ensure `query_data.json` is available.

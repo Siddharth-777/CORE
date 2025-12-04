@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import requests
@@ -10,14 +11,20 @@ import re
 import asyncio
 import aiohttp
 import time
+import uuid
+import shutil
 
 from parser import extract_formatted_blocks, save_blocks_to_json
 from semantic_matcher import match_blocks
 from supabase_client import upload_to_supabase, get_public_url, get_supabase_client
 
+# ---------------------------------------------------------
+# Heading detection helpers (from your original code)
+# ---------------------------------------------------------
+
 SECTION_PATTERNS = [
-    r"^\d+(\.\d+)\s+[A-Za-z].$",             # 1, 1.1, 1.1.2 titled sections
-    r"^[A-Z][A-Z\s]{3,}$",                     # ALL CAPS headings
+    r"^\d+(\.\d+)*\s+[A-Za-z].*$",        # 1, 1.1, 1.1.2 titled sections
+    r"^[A-Z][A-Z\s]{3,}$",                # ALL CAPS headings
     r"^(Coverage|Exclusions|Definitions|Benefits|Waiting Periods|Claims?)$",
 ]
 
@@ -28,14 +35,40 @@ def is_heading(text: str):
         return False
     return any(re.match(p, text) for p in SECTION_PATTERNS)
 
+
+# ---------------------------------------------------------
+# Env + Groq setup
+# ---------------------------------------------------------
+
 load_dotenv(dotenv_path=".env", encoding="utf-8")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.1-8b-instant"
+
+# In-memory store: session_id -> parsed blocks
+SESSION_BLOCKS: dict[str, list[dict]] = {}
+
+# ---------------------------------------------------------
+# FastAPI app + CORS
+# ---------------------------------------------------------
 
 app = FastAPI()
 
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.1-8b-instant"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------
+# Supabase helpers (cache)
+# ---------------------------------------------------------
 
 
 def get_existing_parsed_data(pdf_url: str):
@@ -52,13 +85,20 @@ def get_existing_parsed_data(pdf_url: str):
 def save_processed_doc(pdf_url: str, pdf_storage_path: str, json_url: str):
     try:
         supabase = get_supabase_client()
-        supabase.table("processed_docs").insert({
-            "url": pdf_url,
-            "pdf_storage_path": pdf_storage_path,
-            "json_url": json_url
-        }).execute()
+        supabase.table("processed_docs").insert(
+            {
+                "url": pdf_url,
+                "pdf_storage_path": pdf_storage_path,
+                "json_url": json_url,
+            }
+        ).execute()
     except Exception as e:
         print(f"Cache save error: {e}")
+
+
+# ---------------------------------------------------------
+# Health routes
+# ---------------------------------------------------------
 
 
 @app.get("/")
@@ -79,15 +119,30 @@ async def run_hackrx_get():
             "documents": "https://example.com/sample.pdf",
             "questions": [
                 "What are the coverage exclusions?",
-                "How are claims processed?"
-            ]
-        }
+                "How are claims processed?",
+            ],
+        },
     }
+
+
+# ---------------------------------------------------------
+# Request models
+# ---------------------------------------------------------
 
 
 class HackRxRequest(BaseModel):
     documents: str
     questions: list[str]
+
+
+class ChatAskRequest(BaseModel):
+    session_id: str
+    question: str
+
+
+# ---------------------------------------------------------
+# Formatting helpers (from your original code)
+# ---------------------------------------------------------
 
 
 def format_context_with_headers(chunks):
@@ -112,7 +167,7 @@ def format_reference(blocks, max_blocks=3, question=""):
     relevant_flags = {
         "grace period": ["CONDITION", "HIGH PRIORITY"],
         "maternity": ["MATERNITY", "COVERS", "EXCLUDES", "CONDITION"],
-        "moratorium": ["PRE-EXISTING", "HIGH PRIORITY", "CONDITION"]
+        "moratorium": ["PRE-EXISTING", "HIGH PRIORITY", "CONDITION"],
     }
     question_lower = question.lower()
     selected_flags = []
@@ -137,19 +192,17 @@ def format_reference(blocks, max_blocks=3, question=""):
     references = []
     for block in unique_blocks:
         header = (block.get("header") or block.get("section") or "No Header").strip()
-
         page = block.get("page", "Unknown")
-        section_match = re.match(r'^\[?(\d+(\.\d+(\.\d+)?)?)\.?', header)
+        section_match = re.match(r"^\[?(\d+(\.\d+(\.\d+)?)?)\.?", header)
         section_number = section_match.group(1) if section_match else "Unknown"
         references.append(f"Page {page} : Section {section_number} : {header}")
     return ", ".join(references) if references else "No relevant sections found"
 
 
-
 def format_answer_json(question: str, answer_text: str, matched_blocks: list):
     """
     Creates structured JSON with correct section/page/text for each reference block.
-    Also converts escaped \n into real newlines.
+    Also converts escaped \\n into real newlines.
     """
     references = []
 
@@ -161,7 +214,7 @@ def format_answer_json(question: str, answer_text: str, matched_blocks: list):
         ref = {
             "page": b.get("page") or b.get("pagenumber") or "Unknown",
             "section": b.get("section") or b.get("header") or "Miscellaneous",
-            "text": clean_text
+            "text": clean_text,
         }
 
         references.append(ref)
@@ -169,20 +222,26 @@ def format_answer_json(question: str, answer_text: str, matched_blocks: list):
     return {
         "question": question,
         "answer": answer_text.strip(),
-        "references": references
+        "references": references,
     }
+
+
+# ---------------------------------------------------------
+# Groq client
+# ---------------------------------------------------------
 
 
 async def query_groq(prompt: str):
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API key not set")
+
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     payload = {
         "model": GROQ_MODEL,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
+        "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.2,
         "max_tokens": 350,
     }
@@ -213,6 +272,122 @@ async def query_groq(prompt: str):
             text = await resp.text()
             print("Raw response:", text)
             return f"Error: Groq returned status {resp.status}"
+
+
+# ---------------------------------------------------------
+# Shared question-answer helper
+# ---------------------------------------------------------
+
+
+async def answer_question_from_blocks(blocks, question: str, idx: int = 0):
+    upload_filename = f"json/query_data_q{idx + 1}.json"
+
+    matched, _ = match_blocks(
+        paragraphs=blocks,
+        query=question,
+        bucket_name="doc-processing",
+        upload_filename=upload_filename,
+        top_n=8,
+        include_neighbors=True,
+    )
+
+    context = format_context_with_headers(matched)
+
+    prompt = (
+        "You must answer strictly and exclusively from the provided document. "
+        "Your entire output must remain fully grounded in it.\n\n"
+        "RULES (no exceptions):\n"
+        "1. Use ONLY information explicitly in the document.\n"
+        "2. Quote exact wording whenever referencing the document.\n"
+        "3. Do NOT add, assume, infer, interpret, or use outside knowledge.\n"
+        "4. Do NOT summarize unless the summary consists only of quoted text.\n"
+        "5. Do NOT fabricate details, metadata, page numbers, or section labels.\n"
+        "6. Do NOT explain or expand beyond what the document states.\n"
+        "7. If the answer is not explicitly present, reply EXACTLY:\n"
+        "   Answer not found in the provided document.\n"
+        "8. No alternative phrasing or extra commentary beyond the answer.\n\n"
+        "TASK:\n"
+        "Answer the question strictly using the document.\n\n"
+        f"Document:\n{context}\n\n"
+        f"Question: {question}\n\n"
+        "Answer:"
+    )
+
+    result = await query_groq(prompt)
+
+    # Fallback if needed
+    if ("Answer not found" in result) or not re.search(r"\d", result):
+        full_context = format_context_with_headers(blocks)
+        prompt_full = (
+            "You are an assistant answering questions based only on the provided document.\n"
+            "Quote the relevant policy wording exactly where possible.\n"
+            "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
+            f"Document:\n{full_context}\n\n"
+            f"Question: {question}\nAnswer:"
+        )
+        result = await query_groq(prompt_full)
+
+    cleaned_result = result.replace("\\n", "\n").strip()
+    formatted = format_answer_json(question, cleaned_result, matched)
+    return formatted
+
+
+# ---------------------------------------------------------
+# New upload + ask endpoints (for your UI)
+# ---------------------------------------------------------
+
+
+@app.post("/hackrx/upload_file")
+async def upload_file(file: UploadFile = File(...)):
+    if file.content_type not in ("application/pdf", "application/octet-stream"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    # Save uploaded PDF to a temp file
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+            shutil.copyfileobj(file.file, tmp_pdf)
+            pdf_path = tmp_pdf.name
+    finally:
+        file.file.close()
+
+    # Parse PDF into blocks
+    try:
+        blocks = extract_formatted_blocks(pdf_path)
+        save_blocks_to_json(blocks)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse PDF: {e}")
+
+    # Create a session and store blocks in memory
+    session_id = str(uuid.uuid4())
+    SESSION_BLOCKS[session_id] = blocks
+
+    return {
+        "session_id": session_id,
+        "message": "PDF uploaded and parsed successfully.",
+    }
+
+
+@app.post("/hackrx/ask")
+async def ask_question(req: ChatAskRequest):
+    blocks = SESSION_BLOCKS.get(req.session_id)
+    if blocks is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found. Please upload and process the PDF again.",
+        )
+
+    try:
+        answer_obj = await answer_question_from_blocks(blocks, req.question, idx=0)
+        return answer_obj
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------
+# Original /hackrx/run (URL-based) endpoint
+# ---------------------------------------------------------
 
 
 @app.post("/hackrx/run")
@@ -250,59 +425,14 @@ async def run_hackrx(req: HackRxRequest, authorization: str = Header(None)):
             save_blocks_to_json(blocks)
             print(f"PDF parsing + JSON save: {time.time() - step2:.2f} sec")
 
-            json_url = get_public_url("doc-processing", "json/reconstructed_paragraphs.json")
+            json_url = get_public_url(
+                "doc-processing", "json/reconstructed_paragraphs.json"
+            )
             save_processed_doc(req.documents, "pdf/input.pdf", json_url)
 
         async def process_question(idx, question):
             q_start = time.time()
-            upload_filename = f"json/query_data_q{idx + 1}.json"
-
-            matched, _ = match_blocks(
-                paragraphs=blocks,
-                query=question,
-                bucket_name="doc-processing",
-                upload_filename=upload_filename,
-                top_n=8,
-                include_neighbors=True
-            )
-
-            context = format_context_with_headers(matched)
-
-            prompt = (
-                "You must answer strictly and exclusively from the provided document. "
-                "Your entire output must remain fully grounded in it.\n\n"
-                "RULES (no exceptions):\n"
-                "1. Use ONLY information explicitly in the document.\n"
-                "2. Quote exact wording whenever referencing the document.\n"
-                "3. Do NOT add, assume, infer, interpret, or use outside knowledge.\n"
-                "4. Do NOT summarize unless the summary consists only of quoted text.\n"
-                "5. Do NOT fabricate details, metadata, page numbers, or section labels.\n"
-                "6. Do NOT explain or expand beyond what the document states.\n"
-                "7. If the answer is not explicitly present, reply EXACTLY:\n"
-                "   Answer not found in the provided document.\n"
-                "8. No alternative phrasing or extra commentary beyond the answer.\n\n"
-                "TASK:\n"
-                "Answer the question strictly using the document.\n\n"
-                f"Document:\n{context}\n\n"
-                f"Question: {question}\n\n"
-                "Answer:"
-            )
-
-            result = await query_groq(prompt)
-
-            if ("Answer not found" in result) or not re.search(r'\d', result):
-                print(f"Fallback triggered for Q{idx+1}")
-                full_context = format_context_with_headers(blocks)
-                prompt_full = (
-                    "You are an assistant answering questions based only on the provided document.\n"
-                    "Quote the relevant policy wording exactly where possible.\n"
-                    "If the answer is not found, reply exactly: Answer not found in the provided document.\n\n"
-                    f"Document:\n{full_context}\n\n"
-                    f"Question: {question}\nAnswer:"
-                )
-                result = await query_groq(prompt_full)
-            cleaned_result = result.replace("\\n", "\n").strip()
-            formatted = format_answer_json(question, cleaned_result, matched)
+            formatted = await answer_question_from_blocks(blocks, question, idx=idx)
             print(f"Q{idx+1} done in {time.time() - q_start:.2f} sec")
             return formatted
 

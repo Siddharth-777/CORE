@@ -55,4 +55,3 @@ nunit-*.xml
 
 venv
 .env
-venv311

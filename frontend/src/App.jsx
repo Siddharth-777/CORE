@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
@@ -68,6 +68,45 @@ const getMainKeyword = (text = "", question = "") => {
   return null;
 };
 
+const parseOutlinePreview = (previewText = "") => {
+  const lines = previewText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines.map((line, index) => {
+    const annotationMatches = [...line.matchAll(/\[([^\]]+)\]/g)]
+      .map((match) => match[1].trim())
+      .filter(Boolean);
+
+    const withoutAnnotations = line.replace(/\[([^\]]+)\]/g, "").trim();
+    const normalizedText = withoutAnnotations.replace(/\s+/g, " ");
+    const displayText = normalizedText || annotationMatches.join(" ") || line;
+
+    const numberingMatch = displayText.match(/^(\d+(?:\.\d+)+)/);
+    const romanMatch = displayText.match(/^(?:[ivxlcdm]+)\./i);
+    const bulletMatch = displayText.match(/^[•\-–]/);
+
+    let depth = 0;
+    if (numberingMatch) {
+      depth = Math.max(numberingMatch[1].split(".").length - 1, 0);
+    } else if (romanMatch) {
+      depth = 2;
+    } else if (bulletMatch) {
+      depth = 1;
+    } else if (displayText.startsWith("-")) {
+      depth = 1;
+    }
+
+    return {
+      id: `${index}-${line.slice(0, 20)}`,
+      text: displayText,
+      annotations: annotationMatches,
+      depth,
+    };
+  });
+};
+
 const renderMessageText = (message) => {
   if (message.sender !== "bot") return message.text;
 
@@ -112,6 +151,8 @@ function App() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
   const [videoStatus, setVideoStatus] = useState("idle");
   const [videoMessage, setVideoMessage] = useState("");
+
+  const parsedOutline = useMemo(() => parseOutlinePreview(detectionPreview), [detectionPreview]);
 
   const hidePreviewTimeoutRef = useRef(null);
 
@@ -435,7 +476,7 @@ function App() {
 
   const handleDetectPreview = () => {
     requestBackendPreview(
-      "List the main headings and subheadings from this PDF with their nesting.",
+      "List the main headings and subheadings from this PDF with their nesting, and include any PDF annotations or bracketed notes alongside the related sections when available.",
       setDetectionPreview,
       setDetectError,
       setDetectLoading
@@ -814,18 +855,36 @@ function App() {
               </div>
               
               <div className="preview-content-large">
-                {detectionPreview ? (
-                  <div className="preview-text">
-                    {detectionPreview.split("\n").map((line, idx) => (
-                      <div key={idx} className="preview-line">
-                        {line}
+                {detectionPreview && parsedOutline.length > 0 ? (
+                  <div className="outline-list" aria-label="Document outline preview">
+                    {parsedOutline.map((item) => (
+                      <div
+                        key={item.id}
+                        className="outline-item"
+                        style={{ marginLeft: `${item.depth * 16}px` }}
+                      >
+                        <div className="outline-line">
+                          <span className="outline-bullet" aria-hidden></span>
+                          <div>
+                            <div className="outline-text">{item.text}</div>
+                            {item.annotations.length > 0 && (
+                              <div className="outline-annotations" aria-label="PDF annotations">
+                                {item.annotations.map((annotation, idx) => (
+                                  <span key={`${item.id}-ann-${idx}`} className="annotation-chip">
+                                    {annotation}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="preview-empty">
                     <p className="placeholder-text">
-                      {sessionId 
+                      {sessionId
                         ? "Click 'Load Outline' to view the document structure"
                         : "Process a document to view its hierarchical structure"
                       }

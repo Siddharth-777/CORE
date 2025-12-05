@@ -764,7 +764,7 @@ function App() {
                     <div className="video-header">
                       <div>
                         <h3 className="video-title">Generate 8s Video</h3>
-                        <p className="video-subtitle">Turn the latest conclusion into a short clip via FAL.ai.</p>
+                        <p className="video-subtitle">Turn the latest conclusion into a short clip via FAL.ai's fast-svd model.</p>
                       </div>
                       <button
                         className="btn btn-secondary"

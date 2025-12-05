@@ -381,7 +381,7 @@ function App() {
       const url = data.video_url || data.url || data.output_url;
 
       if (!url) {
-        throw new Error("No video URL returned by Veo.");
+        throw new Error("No video URL returned by FAL.");
       }
 
       setVideoUrl(url);
@@ -764,7 +764,7 @@ function App() {
                     <div className="video-header">
                       <div>
                         <h3 className="video-title">Generate 8s Video</h3>
-                        <p className="video-subtitle">Turn the latest conclusion into a short clip via Veo 3.</p>
+                        <p className="video-subtitle">Turn the latest conclusion into a short clip via FAL.ai.</p>
                       </div>
                       <button
                         className="btn btn-secondary"

@@ -796,6 +796,27 @@ body {
   align-items: flex-start;
 }
 
+.outline-content {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.outline-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background-color: rgba(0, 0, 0, 0.05);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-muted);
+}
+
 .outline-bullet {
   width: 8px;
   height: 8px;

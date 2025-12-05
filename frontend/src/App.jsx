@@ -74,37 +74,61 @@ const parseOutlinePreview = (previewText = "") => {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  return lines.map((line, index) => {
-    const annotationMatches = [...line.matchAll(/\[([^\]]+)\]/g)]
-      .map((match) => match[1].trim())
-      .filter(Boolean);
+  const parsed = lines
+    .map((line, index) => {
+      const annotationMatches = [...line.matchAll(/\[([^\]]+)\]/g)]
+        .map((match) => match[1].trim())
+        .filter(Boolean);
 
-    const withoutAnnotations = line.replace(/\[([^\]]+)\]/g, "").trim();
-    const normalizedText = withoutAnnotations.replace(/\s+/g, " ");
-    const displayText = normalizedText || annotationMatches.join(" ") || line;
+      const withoutAnnotations = line.replace(/\[([^\]]+)\]/g, "").trim();
+      const normalizedText = withoutAnnotations.replace(/\s+/g, " ");
 
-    const numberingMatch = displayText.match(/^(\d+(?:\.\d+)+)/);
-    const romanMatch = displayText.match(/^(?:[ivxlcdm]+)\./i);
-    const bulletMatch = displayText.match(/^[•\-–]/);
+      if (!normalizedText && annotationMatches.length === 0) return null;
+      if (/^null$/i.test(normalizedText)) return null;
 
-    let depth = 0;
-    if (numberingMatch) {
-      depth = Math.max(numberingMatch[1].split(".").length - 1, 0);
-    } else if (romanMatch) {
-      depth = 2;
-    } else if (bulletMatch) {
-      depth = 1;
-    } else if (displayText.startsWith("-")) {
-      depth = 1;
+      const markerMatch = normalizedText.match(
+        /^(?<marker>(?:\d+(?:\.\d+)*)|(?:[ivxlcdm]+\.)|(?:[a-z]\.)|\([a-z0-9]+\)|[•\-–])\s*(?<rest>.*)$/i
+      );
+
+      const marker = markerMatch?.groups?.marker?.replace(/[•\-–]/, "")?.trim() || "";
+      const text = (markerMatch?.groups?.rest || normalizedText).trim();
+      if (!text && annotationMatches.length === 0) return null;
+
+      let depth = 0;
+      if (markerMatch) {
+        if (/^\d+(?:\.\d+)*$/.test(marker)) {
+          const parts = marker.split(".");
+          depth = Math.max(parts.length - 1, 0);
+        } else if (/^[ivxlcdm]+\.$/i.test(marker)) {
+          depth = 2;
+        } else {
+          depth = 1;
+        }
+      }
+
+      return {
+        id: `${index}-${line.slice(0, 20)}`,
+        text: text || annotationMatches.join(" "),
+        annotations: annotationMatches,
+        depth,
+        marker,
+      };
+    })
+    .filter(Boolean);
+
+  const deduped = [];
+  for (const item of parsed) {
+    const last = deduped[deduped.length - 1];
+    const signature = `${item.text}|${item.marker}|${item.annotations.join("|")}`;
+    const lastSignature = last
+      ? `${last.text}|${last.marker}|${last.annotations.join("|")}`
+      : null;
+    if (signature !== lastSignature) {
+      deduped.push(item);
     }
+  }
 
-    return {
-      id: `${index}-${line.slice(0, 20)}`,
-      text: displayText,
-      annotations: annotationMatches,
-      depth,
-    };
-  });
+  return deduped;
 };
 
 const renderMessageText = (message) => {
@@ -861,23 +885,24 @@ function App() {
                       <div
                         key={item.id}
                         className="outline-item"
-                        style={{ marginLeft: `${item.depth * 16}px` }}
+                        style={{ marginLeft: `${item.depth * 18}px` }}
                       >
                         <div className="outline-line">
                           <span className="outline-bullet" aria-hidden></span>
-                          <div>
+                          <div className="outline-content">
+                            {item.marker && <span className="outline-marker">{item.marker}</span>}
                             <div className="outline-text">{item.text}</div>
-                            {item.annotations.length > 0 && (
-                              <div className="outline-annotations" aria-label="PDF annotations">
-                                {item.annotations.map((annotation, idx) => (
-                                  <span key={`${item.id}-ann-${idx}`} className="annotation-chip">
-                                    {annotation}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         </div>
+                        {item.annotations.length > 0 && (
+                          <div className="outline-annotations" aria-label="PDF annotations">
+                            {item.annotations.map((annotation, idx) => (
+                              <span key={`${item.id}-ann-${idx}`} className="annotation-chip">
+                                {annotation}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

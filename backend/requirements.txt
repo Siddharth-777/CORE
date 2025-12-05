@@ -5,12 +5,14 @@ pymupdf==1.24.14
 nltk==3.9.1
 python-dotenv==1.0.1
 supabase==2.9.1
-numpy==2.1.3
 aiohttp
 python-multipart
 
-# spaCy core library – version compatible with the model
+# Fix NumPy to spaCy-compatible version
+numpy==1.26.4
+
+# spaCy core library – compatible with model 3.7.1
 spacy==3.7.4
 
-# spaCy English model via wheel URL (works on Railway)
+# spaCy English model (installed via wheel URL)
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl

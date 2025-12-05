@@ -35,6 +35,10 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
   SUPABASE_URL=<your-supabase-url>
   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-key>
   GROQ_API_KEY=<your-groq-api-key>
+  FAL_API_KEY=<your-fal-api-key>
+  # Optional overrides if your FAL endpoint or model name differ
+  FAL_API_URL=https://fal.run/fal-ai/veo
+  FAL_MODEL=veo-3
   ```
 - (Optional) Local Ollama server for `llm.py`
 
@@ -49,7 +53,7 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    ```
-3. Install dependencies:
+ 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
@@ -61,6 +65,12 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    ```bash
    ollama run llama3
    ```
+
+### Video generation via FAL.ai
+- The `/hackrx/generate_video` endpoint creates an 8-second clip from the chatbot conclusion using FAL.ai's hosted Veo 3-style video model.
+- You need an API key with access to the model on FAL.ai. Set it in `FAL_API_KEY`.
+- If your deployment uses a different FAL endpoint or model name, override `FAL_API_URL` and `FAL_MODEL` in `.env`.
+- When running locally without internet access, video generation will fail with a 502/504 error that explains whether DNS/host lookup or timeout caused the problem.
 
 ## Usage
 ### API Server

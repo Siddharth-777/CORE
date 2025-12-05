@@ -3,6 +3,54 @@ import "./App.css";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const getMainKeyword = (text = "", question = "") => {
+  const keywordMatchers = [
+    /\b\d+[\s-]*(?:day|month|year|week)s?\b/i,
+    /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\s+(?:day|month|year|week)s?\b/i,
+    /\b\d+%\b/i,
+    /\b\$?\d+(?:,\d{3})*(?:\.\d+)?\b/i,
+  ];
+
+  for (const pattern of keywordMatchers) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+
+  const questionKeywords = question
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((word) => word.length > 3);
+
+  questionKeywords.sort((a, b) => b.length - a.length);
+
+  for (const keyword of questionKeywords) {
+    const match = text.match(new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i"));
+    if (match) return match[0];
+  }
+
+  return null;
+};
+
+const renderMessageText = (message) => {
+  if (message.sender !== "bot") return message.text;
+
+  const keyword = getMainKeyword(message.text, message.question);
+  if (!keyword) return message.text;
+
+  const segments = message.text.split(new RegExp(`(${escapeRegExp(keyword)})`, "gi"));
+
+  return segments.map((segment, idx) => {
+    if (segment.toLowerCase() === keyword.toLowerCase()) {
+      return (
+        <strong key={`${message.id}-kw-${idx}`}>{segment}</strong>
+      );
+    }
+    return <span key={`${message.id}-seg-${idx}`}>{segment}</span>;
+  });
+};
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -22,6 +70,13 @@ function App() {
   const [extractError, setExtractError] = useState("");
   const [activeTab, setActiveTab] = useState("chat");
   const [currentPage, setCurrentPage] = useState("landing");
+  const [referencePreview, setReferencePreview] = useState(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoStatus, setVideoStatus] = useState("idle");
+  const [videoError, setVideoError] = useState("");
+
+  const hidePreviewTimeoutRef = useRef(null);
 
   const fileInputRef = useRef(null);
   const chatMessagesRef = useRef(null);
@@ -44,6 +99,24 @@ function App() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      if (hidePreviewTimeoutRef.current) {
+        clearTimeout(hidePreviewTimeoutRef.current);
+      }
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
+    };
+  }, [pdfPreviewUrl]);
+
+  const resetPdfPreviewUrl = () => {
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+    }
+  };
+
   const validateFile = (file) => {
     if (file.type !== "application/pdf") {
       setUploadError("Please upload a PDF file only.");
@@ -63,6 +136,9 @@ function App() {
     setUploadError("");
 
     if (validateFile(file)) {
+      resetPdfPreviewUrl();
+      const objectUrl = URL.createObjectURL(file);
+      setPdfPreviewUrl(objectUrl);
       setUploadedFile(file);
       setIsProcessingStarted(false);
       setSessionId(null);
@@ -106,6 +182,21 @@ function App() {
     fileInputRef.current?.click();
   };
 
+  const handleReferenceHover = (reference) => {
+    if (hidePreviewTimeoutRef.current) {
+      clearTimeout(hidePreviewTimeoutRef.current);
+      hidePreviewTimeoutRef.current = null;
+    }
+    setReferencePreview(reference);
+  };
+
+  const handleReferenceLeave = () => {
+    hidePreviewTimeoutRef.current = setTimeout(() => {
+      setReferencePreview(null);
+      hidePreviewTimeoutRef.current = null;
+    }, 120);
+  };
+
   const handleRemoveFile = () => {
     setUploadedFile(null);
     setUploadError("");
@@ -117,6 +208,7 @@ function App() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    resetPdfPreviewUrl();
   };
 
   const handleProcessFile = async () => {
@@ -213,11 +305,29 @@ function App() {
 
       const data = await res.json();
 
+      const mappedReferences = (data.references || []).map((ref) => {
+        const page =
+          ref.page ||
+          ref.pagenumber ||
+          ref.pageNumber ||
+          ref.Page ||
+          ref.page_num;
+        const pageFragment = page ? `#page=${page}` : "";
+        const previewUrl = ref.url || (pdfPreviewUrl ? `${pdfPreviewUrl}${pageFragment}` : null);
+
+        return {
+          ...ref,
+          page,
+          url: previewUrl,
+        };
+      });
+
       const botMessage = {
         id: Date.now() + 1,
         text: data.answer || "No answer returned.",
         sender: "bot",
-        references: data.references || [],
+        references: mappedReferences,
+        question: userText,
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -226,6 +336,60 @@ function App() {
       setChatError(err.message || "Failed to get answer from backend.");
     } finally {
       setIsAsking(false);
+    }
+  };
+
+  const latestBotConclusion = [...messages]
+    .reverse()
+    .find((msg) => msg.sender === "bot" && msg.text);
+
+  useEffect(() => {
+    setVideoStatus("idle");
+    setVideoUrl("");
+    setVideoError("");
+  }, [latestBotConclusion?.id]);
+
+  const handleGenerateVideo = async () => {
+    if (!latestBotConclusion) {
+      setVideoError("Ask a question and get a conclusion before generating video.");
+      return;
+    }
+
+    setVideoStatus("loading");
+    setVideoError("");
+    setVideoUrl("");
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/hackrx/generate_video`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: latestBotConclusion.text }),
+      });
+
+      if (!res.ok) {
+        let detail = `Video request failed with status ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch {}
+        throw new Error(detail);
+      }
+
+      const data = await res.json();
+      const url = data.video_url || data.url || data.output_url;
+
+      if (!url) {
+        throw new Error("No video URL returned by FAL.");
+      }
+
+      setVideoUrl(url);
+      setVideoStatus("success");
+    } catch (err) {
+      console.error(err);
+      setVideoStatus("error");
+      setVideoError(err.message || "Failed to generate video.");
     }
   };
 
@@ -304,6 +468,7 @@ function App() {
     setDetectionPreview("");
     setExtractionPreview("");
     setActiveTab("chat");
+    resetPdfPreviewUrl();
   };
 
   const formatFileSize = (bytes) => {
@@ -470,72 +635,165 @@ function App() {
                 )}
               </div>
             ) : (
-              <>
-                <div className="chat-messages" ref={chatMessagesRef}>
-                  {messages.map((msg) => (
-                    <div key={msg.id} className={`message message-${msg.sender}`}>
-                      <div className={`bubble bubble-${msg.sender}`}>
-                        <p className="message-text">{msg.text}</p>
-                        {msg.references?.length > 0 && (
-                          <div className="references">
-                            <p className="references-title">References</p>
-                            <ul>
-                              {msg.references.map((ref, idx) => (
-                                <li key={idx}>
-                                  <a href={ref.url} target="_blank" rel="noreferrer">
-                                    {ref.text}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
+              <div className="chat-layout">
+                <div
+                  className={`reference-preview-panel ${referencePreview ? "visible" : ""}`}
+                  onMouseEnter={() => {
+                    if (hidePreviewTimeoutRef.current) {
+                      clearTimeout(hidePreviewTimeoutRef.current);
+                      hidePreviewTimeoutRef.current = null;
+                    }
+                  }}
+                  onMouseLeave={handleReferenceLeave}
+                >
+                  {referencePreview ? (
+                    <>
+                      <div className="reference-preview-header">
+                        <p className="preview-label">PDF Preview</p>
+                        <div className="preview-meta">
+                          {referencePreview.page && (
+                            <span className="preview-meta-item">Page {referencePreview.page}</span>
+                          )}
+                          {referencePreview.section && (
+                            <span className="preview-meta-item">Section {referencePreview.section}</span>
+                          )}
+                        </div>
+                        {referencePreview.url && (
+                          <a
+                            className="preview-link"
+                            href={referencePreview.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open source PDF
+                          </a>
+                        )}
+                      </div>
+                      <div className="reference-preview-frame">
+                        {referencePreview.url ? (
+                          <iframe
+                            src={referencePreview.url}
+                            title="PDF preview"
+                            className="reference-iframe"
+                          />
+                        ) : (
+                          <div className="reference-preview-empty">
+                            No preview available for this reference.
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-
-                  {isAsking && (
-                    <div className="message message-bot">
-                      <div className="bubble bubble-bot">
-                        <div className="typing-indicator">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
-                      </div>
+                    </>
+                  ) : (
+                    <div className="reference-preview-placeholder">
+                      Hover over a reference to see the PDF context.
                     </div>
                   )}
                 </div>
 
-                {chatError && <div className="error-message error-chat">{chatError}</div>}
+                <div className="chat-column">
+                  <div className="chat-messages" ref={chatMessagesRef}>
+                    {messages.map((msg) => (
+                      <div key={msg.id} className={`message message-${msg.sender}`}>
+                        <div className={`bubble bubble-${msg.sender}`}>
+                          <p className="message-text">{renderMessageText(msg)}</p>
+                          {msg.references?.length > 0 && (
+                            <div className="references">
+                              <p className="references-title">References</p>
+                              <ul>
+                                {msg.references.map((ref, idx) => (
+                                  <li
+                                    key={idx}
+                                    onMouseEnter={() => handleReferenceHover(ref)}
+                                    onMouseLeave={handleReferenceLeave}
+                                  >
+                                    <a href={ref.url} target="_blank" rel="noreferrer">
+                                      {ref.text}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
 
-                <div className="chat-input-wrapper">
-                  <div className="input-container">
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Ask about document structure, sections, or content..."
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
-                          handleSendMessage();
-                        }
-                      }}
-                      disabled={!sessionId || isAsking}
-                    />
-                    <button
-                      className="btn btn-primary btn-icon"
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || !sessionId || isAsking}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
+                    {isAsking && (
+                      <div className="message message-bot">
+                        <div className="bubble bubble-bot">
+                          <div className="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {chatError && <div className="error-message error-chat">{chatError}</div>}
+
+                  <div className="chat-input-wrapper">
+                    <div className="input-container">
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Ask about document structure, sections, or content..."
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
+                            handleSendMessage();
+                          }
+                        }}
+                        disabled={!sessionId || isAsking}
+                      />
+                      <button
+                        className="btn btn-primary btn-icon"
+                        onClick={handleSendMessage}
+                        disabled={!inputMessage.trim() || !sessionId || isAsking}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="video-panel">
+                    <div className="video-header">
+                      <div>
+                        <h3 className="video-title">Generate 8s Video</h3>
+                        <p className="video-subtitle">Turn the latest conclusion into a short clip via FAL.ai.</p>
+                      </div>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={handleGenerateVideo}
+                        disabled={!latestBotConclusion || videoStatus === "loading"}
+                      >
+                        {videoStatus === "loading" ? "Generating..." : "Create Video"}
+                      </button>
+                    </div>
+
+                    {latestBotConclusion ? (
+                      <p className="video-context">Using conclusion: {latestBotConclusion.text}</p>
+                    ) : (
+                      <p className="video-placeholder">Ask a question to produce a conclusion for video generation.</p>
+                    )}
+
+                    {videoError && <div className="error-message video-error">{videoError}</div>}
+
+                    {videoStatus === "success" && videoUrl && (
+                      <div className="video-preview">
+                        <video className="video-player" src={videoUrl} controls></video>
+                        <a className="video-link" href={videoUrl} target="_blank" rel="noreferrer">
+                          Open video in new tab
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}

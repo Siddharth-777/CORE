@@ -10,6 +10,7 @@ from collections import defaultdict
 import re
 import asyncio
 import aiohttp
+from aiohttp import ClientError, ClientConnectorError
 import time
 import uuid
 import shutil
@@ -45,6 +46,9 @@ load_dotenv(dotenv_path=".env", encoding="utf-8")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.1-8b-instant"
+FAL_API_KEY = os.getenv("FAL_API_KEY")
+FAL_API_URL = os.getenv("FAL_API_URL", "https://fal.run/fal-ai/veo")
+FAL_MODEL = os.getenv("FAL_MODEL", "veo-3")
 
 # In-memory store: session_id -> parsed blocks
 SESSION_BLOCKS: dict[str, list[dict]] = {}
@@ -138,6 +142,10 @@ class HackRxRequest(BaseModel):
 class ChatAskRequest(BaseModel):
     session_id: str
     question: str
+
+
+class GenerateVideoRequest(BaseModel):
+    prompt: str
 
 
 # ---------------------------------------------------------
@@ -383,6 +391,69 @@ async def ask_question(req: ChatAskRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/hackrx/generate_video")
+async def generate_video(req: GenerateVideoRequest):
+    if not FAL_API_KEY:
+        raise HTTPException(status_code=500, detail="FAL API key not set")
+
+    payload = {
+        "prompt": req.prompt,
+        "duration_seconds": 8,
+        "model": FAL_MODEL,
+    }
+
+    headers = {
+        "Authorization": f"Key {FAL_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30)
+        ) as session:
+            async with session.post(FAL_API_URL, json=payload, headers=headers) as resp:
+                body_text = await resp.text()
+                if resp.status >= 300:
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"FAL API error: {body_text}",
+                    )
+
+                try:
+                    data = await resp.json()
+                except Exception:
+                    raise HTTPException(
+                        status_code=500, detail="Invalid response from FAL API"
+                    )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Timed out waiting for FAL API. Please try again later.",
+        )
+    except ClientConnectorError:
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to reach FAL API host. Check FAL_API_URL, network access, or DNS settings.",
+        )
+    except ClientError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Network error talking to FAL API: {exc}",
+        )
+
+    video_url = (
+        data.get("video_url")
+        or data.get("url")
+        or data.get("output_url")
+        or data.get("result")
+    )
+
+    if not video_url:
+        raise HTTPException(status_code=500, detail="No video URL returned by FAL API")
+
+    return {"video_url": video_url, "job_id": data.get("id") or data.get("job_id")}
 
 
 # ---------------------------------------------------------

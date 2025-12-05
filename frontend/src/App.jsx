@@ -20,21 +20,29 @@ function App() {
   const [extractionPreview, setExtractionPreview] = useState("");
   const [detectError, setDetectError] = useState("");
   const [extractError, setExtractError] = useState("");
+  const [activeTab, setActiveTab] = useState("chat");
+  const [currentPage, setCurrentPage] = useState("landing");
 
   const fileInputRef = useRef(null);
+  const chatMessagesRef = useRef(null);
 
   useEffect(() => {
     if (isProcessingStarted && messages.length === 0) {
       setMessages([
         {
           id: 1,
-          text: "Your PDF is parsed. Ask about coverage, exclusions, grace periods, or waiting periods — answers stay grounded in the document.",
+          text: "Your PDF is parsed. Ask about coverage, exclusions, grace periods, or waiting periods—answers stay grounded in the document.",
           sender: "bot",
         },
       ]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isProcessingStarted]);
+  }, [isProcessingStarted, messages.length]);
+
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const validateFile = (file) => {
     if (file.type !== "application/pdf") {
@@ -44,7 +52,7 @@ function App() {
 
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      setUploadError("File size exceeds 50MB limit. Please upload a smaller file.");
+      setUploadError("File size exceeds 50MB limit.");
       return false;
     }
 
@@ -136,9 +144,7 @@ function App() {
         try {
           const body = await res.json();
           if (body?.detail) detail = body.detail;
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         throw new Error(detail);
       }
 
@@ -149,7 +155,7 @@ function App() {
       setMessages([
         {
           id: 1,
-          text: "Your PDF has been uploaded successfully. I can assist you with questions about the structure extraction process, detected elements, or the output format. How may I assist you?",
+          text: "Your PDF has been uploaded successfully. I can assist you with questions about the structure extraction process, detected elements, or the output format.",
           sender: "bot",
         },
       ]);
@@ -201,9 +207,7 @@ function App() {
         try {
           const body = await res.json();
           if (body?.detail) detail = body.detail;
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         throw new Error(detail);
       }
 
@@ -254,9 +258,7 @@ function App() {
         try {
           const body = await res.json();
           if (body?.detail) detail = body.detail;
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         throw new Error(detail);
       }
 
@@ -288,6 +290,22 @@ function App() {
     );
   };
 
+  const handleGoToApp = () => {
+    setCurrentPage("app");
+  };
+
+  const handleGoToLanding = () => {
+    setCurrentPage("landing");
+    setUploadedFile(null);
+    setUploadError("");
+    setIsProcessingStarted(false);
+    setMessages([]);
+    setSessionId(null);
+    setDetectionPreview("");
+    setExtractionPreview("");
+    setActiveTab("chat");
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -296,248 +314,168 @@ function App() {
     return `${Math.round((bytes / k ** i) * 100) / 100} ${sizes[i]}`;
   };
 
-  return (
-    <div className="page">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark" />
-          PDF Structure Extractor
-        </div>
-        <nav className="topbar-actions">
-          <button className="link-button" type="button">
-            Docs
-          </button>
-          <button className="link-button" type="button">
-            API
-          </button>
-          <button className="primary-button" disabled={!sessionId}>
-            Export JSON
-          </button>
-        </nav>
-      </header>
+  if (currentPage === "landing") {
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="header-inner">
+            <div className="logo">
+              <div className="logo-mark"></div>
+              <span className="logo-text">CORE</span>
+            </div>
+          </div>
+        </header>
 
-      <main className="content">
-        <section className="hero">
-          <div className="hero-text">
-            <p className="eyebrow">Structured PDF workspace</p>
-            <h1>Minimal surface, focused on the document</h1>
-            <p className="lede">
-              Upload a policy, contract, or report and review the outline, extracted highlights, and chat
-              responses without distractions.
+        <main className="landing-page">
+          <div className="landing-hero">
+            <h1 className="landing-title">Document Structure Extraction</h1>
+            <p className="landing-subtitle">
+              Extract hierarchical structure from PDF documents. Analyze headings, content blocks, and document organization with precision.
             </p>
-            <div className="hero-actions">
-              <button className="primary-button" type="button" onClick={handleChooseFileClick}>
-                Start with a PDF
-              </button>
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={() => {
-                  document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
-                Jump to upload
-              </button>
-            </div>
-          </div>
-          <div className="hero-quicklist">
-            <div className="quick-item">
-              <p className="quick-title">Outline aware</p>
-              <p className="muted">Headings, subheadings, and tables stay grouped.</p>
-            </div>
-            <div className="quick-item">
-              <p className="quick-title">JSON ready</p>
-              <p className="muted">Export once you are happy with the preview.</p>
-            </div>
-            <div className="quick-item">
-              <p className="quick-title">Assistant on-call</p>
-              <p className="muted">Ask questions that stay grounded in your PDF.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="panel" id="upload">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Step 1</p>
-              <h2>Upload and validate</h2>
-              <p className="muted">Drop a single PDF up to 50MB. We keep the process quiet and clear.</p>
-            </div>
-            <span
-              className={`status-chip ${uploadedFile ? "status-chip--ready" : "status-chip--idle"}`}
-            >
-              {uploadedFile ? "File ready" : "Waiting for file"}
-            </span>
+            <button className="btn btn-primary btn-large" onClick={handleGoToApp}>
+              Get Started
+            </button>
           </div>
 
-          <div className="upload-area">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileInputChange}
-              accept=".pdf,application/pdf"
-              style={{ display: "none" }}
-            />
-            {!uploadedFile ? (
-              <div
-                className={`upload-zone ${isDragging ? "upload-zone--dragging" : ""}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={(e) => {
-                  if (e.target.tagName !== "BUTTON") {
-                    handleChooseFileClick();
-                  }
-                }}
-              >
-                <div className="upload-icon" />
-                <div className="upload-copy">
-                  <h3>Drop your PDF</h3>
-                  <p className="muted">or click to choose from your computer</p>
-                </div>
-                <button
-                  className="upload-button"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleChooseFileClick();
-                  }}
-                >
-                  Browse files
-                </button>
-              </div>
-            ) : (
-              <div className="uploaded-file-card">
-                <div className="file-info">
-                  <div className="file-icon">
-                    <div className="file-icon-pdf" />
-                  </div>
-                  <div className="file-details">
-                    <h3 className="file-name">{uploadedFile.name}</h3>
-                    <p className="file-size">{formatFileSize(uploadedFile.size)}</p>
-                  </div>
-                </div>
-                <div className="file-actions">
-                  <button
-                    className="file-action-button file-action-button--primary"
-                    onClick={handleProcessFile}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? "Processing…" : "Process"}
-                  </button>
-                  <button className="file-action-button" onClick={handleRemoveFile}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            )}
-            {uploadError && <div className="upload-error">{uploadError}</div>}
-          </div>
-        </section>
-
-        <section className="panel minimal-grid">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Step 2</p>
-              <h2>Review the outline and content</h2>
-              <p className="muted">
-                Pull a quick outline, skim the extracted highlights, and move on to export when it looks right.
+          <div className="landing-features">
+            <div className="feature-card">
+              <h3 className="feature-title">Intelligent Parsing</h3>
+              <p className="feature-description">
+                Automatically detect and extract document structure, preserving hierarchical relationships between sections.
               </p>
             </div>
-            <div className="progress-pill">
-              <span className="progress-dot" />
-              {sessionId ? "Document parsed" : "Waiting for processing"}
+            <div className="feature-card">
+              <h3 className="feature-title">AI Assistant</h3>
+              <p className="feature-description">
+                Ask questions about document content and structure. Get contextual answers grounded in the source material.
+              </p>
+            </div>
+            <div className="feature-card">
+              <h3 className="feature-title">Content Analysis</h3>
+              <p className="feature-description">
+                Review extracted outlines and content summaries. Verify structure before exporting to downstream systems.
+              </p>
             </div>
           </div>
+        </main>
+      </div>
+    );
+  }
 
-          <div className="grid two-col">
-            <div className="preview-block">
-              <div className="preview-header">
-                <div>
-                  <p className="muted">Detected outline</p>
-                  <h3>Structure preview</h3>
-                </div>
-                <button
-                  className="ghost-button"
-                  onClick={handleDetectPreview}
-                  disabled={!sessionId || detectLoading}
-                >
-                  {detectLoading ? "Fetching…" : "Fetch outline"}
-                </button>
-              </div>
-              <div className="structure-box">
-                {detectionPreview ? (
-                  detectionPreview.split("\n").map((line, idx) => (
-                    <div key={idx} className="structure-row">
-                      {line}
-                    </div>
-                  ))
-                ) : (
-                  <p className="placeholder-text">
-                    No preview yet. Process and fetch to see headings and subheadings.
-                  </p>
-                )}
-              </div>
-              {detectError && <div className="upload-error">{detectError}</div>}
-            </div>
-
-            <div className="preview-block">
-              <div className="preview-header">
-                <div>
-                  <p className="muted">Extracted notes</p>
-                  <h3>Content snapshot</h3>
-                </div>
-                <button
-                  className="ghost-button"
-                  onClick={handleExtractPreview}
-                  disabled={!sessionId || extractLoading}
-                >
-                  {extractLoading ? "Fetching…" : "Fetch summary"}
-                </button>
-              </div>
-              <div className="structure-box">
-                {extractionPreview ? (
-                  extractionPreview.split("\n").map((line, idx) => (
-                    <div key={idx} className="structure-row">
-                      {line}
-                    </div>
-                  ))
-                ) : (
-                  <p className="placeholder-text">
-                    Grab a summary to see how content is grouped before exporting.
-                  </p>
-                )}
-              </div>
-              {extractError && <div className="upload-error">{extractError}</div>}
-            </div>
+  return (
+    <div className="app">
+      <header className="header">
+        <div className="header-inner">
+          <div className="logo" onClick={handleGoToLanding} style={{ cursor: 'pointer' }}>
+            <div className="logo-mark"></div>
+            <span className="logo-text">CORE</span>
           </div>
-        </section>
+          <nav className="tabs">
+            <button 
+              className={activeTab === "chat" ? "tab tab-active" : "tab"}
+              onClick={() => setActiveTab("chat")}
+            >
+              Chatbot
+            </button>
+            <button 
+              className={activeTab === "outline" ? "tab tab-active" : "tab"}
+              onClick={() => setActiveTab("outline")}
+            >
+              Document Outline
+            </button>
+            <button 
+              className={activeTab === "content" ? "tab tab-active" : "tab"}
+              onClick={() => setActiveTab("content")}
+            >
+              Content Summary
+            </button>
+          </nav>
+        </div>
+      </header>
 
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Step 3</p>
-              <h2>Ask the assistant</h2>
-              <p className="muted">Clarify sections, check exclusions, or validate the hierarchy.</p>
-            </div>
-            <span className="status-chip status-chip--soft">
-              {sessionId ? "Ready" : "Upload to enable"}
-            </span>
-          </div>
-
-          <div className="chat-section">
+      <main className="main-content">
+        {activeTab === "chat" && (
+          <div className="tab-content">
             {!sessionId ? (
-              <div className="chat-placeholder">
-                <p className="quick-title">Waiting for a PDF</p>
-                <p className="muted">Process a document to unlock grounded answers.</p>
+              <div className="upload-center">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileInputChange}
+                  accept=".pdf,application/pdf"
+                  style={{ display: "none" }}
+                />
+                
+                {!uploadedFile ? (
+                  <div className="upload-container">
+                    <h2 className="upload-title">Upload Document</h2>
+                    <p className="upload-subtitle">
+                      Upload and process a PDF document to start asking questions about its structure and content.
+                    </p>
+                    <div
+                      className={isDragging ? "dropzone dropzone-active" : "dropzone"}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={(e) => {
+                        if (e.target.tagName !== "BUTTON") {
+                          handleChooseFileClick();
+                        }
+                      }}
+                    >
+                      <div className="dropzone-icon"></div>
+                      <p className="dropzone-text">Drop PDF or click to browse</p>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleChooseFileClick();
+                        }}
+                      >
+                        Select File
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="upload-container">
+                    <h2 className="upload-title">Process Document</h2>
+                    <p className="upload-subtitle">
+                      Review your file and click process to begin extraction.
+                    </p>
+                    <div className="file-card-center">
+                      <div className="file-header">
+                        <div className="file-icon">
+                          <div className="pdf-icon"></div>
+                        </div>
+                        <div className="file-details">
+                          <div className="file-name">{uploadedFile.name}</div>
+                          <div className="file-size">{formatFileSize(uploadedFile.size)}</div>
+                        </div>
+                      </div>
+                      <div className="file-actions-center">
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleProcessFile}
+                          disabled={isUploading}
+                        >
+                          {isUploading ? "Processing..." : "Process Document"}
+                        </button>
+                        <button className="btn btn-text" onClick={handleRemoveFile}>
+                          Remove File
+                        </button>
+                      </div>
+                    </div>
+                    {uploadError && <div className="error-message">{uploadError}</div>}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="chat-window">
-                <div className="chat-messages">
+              <>
+                <div className="chat-messages" ref={chatMessagesRef}>
                   {messages.map((msg) => (
-                    <div key={msg.id} className={`chat-message chat-message--${msg.sender}`}>
-                      <div className="chat-bubble">
-                        <p>{msg.text}</p>
+                    <div key={msg.id} className={`message message-${msg.sender}`}>
+                      <div className={`bubble bubble-${msg.sender}`}>
+                        <p className="message-text">{msg.text}</p>
                         {msg.references?.length > 0 && (
                           <div className="references">
                             <p className="references-title">References</p>
@@ -556,61 +494,141 @@ function App() {
                     </div>
                   ))}
 
-                  {messages.length === 0 && (
-                    <div className="placeholder-text">
-                      Ask about the detected outline, extraction confidence, or specific sections.
+                  {isAsking && (
+                    <div className="message message-bot">
+                      <div className="bubble bubble-bot">
+                        <div className="typing-indicator">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {chatError && <div className="upload-error">{chatError}</div>}
-              </div>
+                {chatError && <div className="error-message error-chat">{chatError}</div>}
+
+                <div className="chat-input-wrapper">
+                  <div className="input-container">
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Ask about document structure, sections, or content..."
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
+                          handleSendMessage();
+                        }
+                      }}
+                      disabled={!sessionId || isAsking}
+                    />
+                    <button
+                      className="btn btn-primary btn-icon"
+                      onClick={handleSendMessage}
+                      disabled={!inputMessage.trim() || !sessionId || isAsking}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
+          </div>
+        )}
 
-            <div className="chat-input-container">
-              <input
-                type="text"
-                className="chat-input"
-                placeholder={
-                  sessionId
-                    ? "Ask about document structure, extraction process, or output format..."
-                    : "Process a PDF first to activate the assistant."
-                }
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter" && inputMessage.trim()) {
-                    handleSendMessage();
-                  }
-                }}
-              />
-              <button
-                className="chat-send-button"
-                onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || !sessionId || isAsking}
-              >
-                {isAsking ? "Thinking…" : "Send"}
-              </button>
+        {activeTab === "outline" && (
+          <div className="tab-content">
+            <div className="preview-panel">
+              <div className="preview-header">
+                <div>
+                  <h2 className="preview-title">Document Outline</h2>
+                  <p className="preview-subtitle">
+                    Hierarchical structure of headings and subheadings extracted from the PDF
+                  </p>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleDetectPreview}
+                  disabled={!sessionId || detectLoading}
+                >
+                  {detectLoading ? "Loading..." : "Load Outline"}
+                </button>
+              </div>
+              
+              <div className="preview-content-large">
+                {detectionPreview ? (
+                  <div className="preview-text">
+                    {detectionPreview.split("\n").map((line, idx) => (
+                      <div key={idx} className="preview-line">
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="preview-empty">
+                    <p className="placeholder-text">
+                      {sessionId 
+                        ? "Click 'Load Outline' to view the document structure"
+                        : "Process a document to view its hierarchical structure"
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {detectError && <div className="error-message">{detectError}</div>}
             </div>
           </div>
-        </section>
+        )}
 
-        <section className="panel principles">
-          <div className="principles-grid">
-            <div className="principle">
-              <p className="quick-title">Stay minimal</p>
-              <p className="muted">Simple surfaces with clear actions keep focus on the file.</p>
-            </div>
-            <div className="principle">
-              <p className="quick-title">Keep hierarchy intact</p>
-              <p className="muted">Headings, tables, and paragraphs stay linked to their sections.</p>
-            </div>
-            <div className="principle">
-              <p className="quick-title">Export with confidence</p>
-              <p className="muted">Review previews before sending JSON downstream.</p>
+        {activeTab === "content" && (
+          <div className="tab-content">
+            <div className="preview-panel">
+              <div className="preview-header">
+                <div>
+                  <h2 className="preview-title">Content Summary</h2>
+                  <p className="preview-subtitle">
+                    Key content blocks organized by section hierarchy
+                  </p>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleExtractPreview}
+                  disabled={!sessionId || extractLoading}
+                >
+                  {extractLoading ? "Loading..." : "Load Summary"}
+                </button>
+              </div>
+              
+              <div className="preview-content-large">
+                {extractionPreview ? (
+                  <div className="preview-text">
+                    {extractionPreview.split("\n").map((line, idx) => (
+                      <div key={idx} className="preview-line">
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="preview-empty">
+                    <p className="placeholder-text">
+                      {sessionId 
+                        ? "Click 'Load Summary' to view extracted content blocks"
+                        : "Process a document to view its content summary"
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {extractError && <div className="error-message">{extractError}</div>}
             </div>
           </div>
-        </section>
+        )}
       </main>
     </div>
   );

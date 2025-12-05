@@ -45,6 +45,9 @@ load_dotenv(dotenv_path=".env", encoding="utf-8")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.1-8b-instant"
+VEO_API_KEY = os.getenv("VEO_API_KEY")
+VEO_API_URL = os.getenv("VEO_API_URL", "https://api.deepmind.com/veo/v1/videos")
+VEO_MODEL = os.getenv("VEO_MODEL", "veo-3")
 
 # In-memory store: session_id -> parsed blocks
 SESSION_BLOCKS: dict[str, list[dict]] = {}
@@ -138,6 +141,10 @@ class HackRxRequest(BaseModel):
 class ChatAskRequest(BaseModel):
     session_id: str
     question: str
+
+
+class GenerateVideoRequest(BaseModel):
+    prompt: str
 
 
 # ---------------------------------------------------------
@@ -383,6 +390,49 @@ async def ask_question(req: ChatAskRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/hackrx/generate_video")
+async def generate_video(req: GenerateVideoRequest):
+    if not VEO_API_KEY:
+        raise HTTPException(status_code=500, detail="Veo API key not set")
+
+    payload = {
+        "model": VEO_MODEL,
+        "prompt": req.prompt,
+        "duration_seconds": 8,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {VEO_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(VEO_API_URL, json=payload, headers=headers) as resp:
+            body_text = await resp.text()
+            if resp.status >= 300:
+                raise HTTPException(
+                    status_code=resp.status,
+                    detail=f"Veo API error: {body_text}",
+                )
+
+            try:
+                data = await resp.json()
+            except Exception:
+                raise HTTPException(status_code=500, detail="Invalid response from Veo API")
+
+    video_url = (
+        data.get("video_url")
+        or data.get("url")
+        or data.get("output_url")
+        or data.get("result")
+    )
+
+    if not video_url:
+        raise HTTPException(status_code=500, detail="No video URL returned by Veo API")
+
+    return {"video_url": video_url, "job_id": data.get("id") or data.get("job_id")}
 
 
 # ---------------------------------------------------------

@@ -72,6 +72,9 @@ function App() {
   const [currentPage, setCurrentPage] = useState("landing");
   const [referencePreview, setReferencePreview] = useState(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoStatus, setVideoStatus] = useState("idle");
+  const [videoError, setVideoError] = useState("");
 
   const hidePreviewTimeoutRef = useRef(null);
 
@@ -333,6 +336,60 @@ function App() {
       setChatError(err.message || "Failed to get answer from backend.");
     } finally {
       setIsAsking(false);
+    }
+  };
+
+  const latestBotConclusion = [...messages]
+    .reverse()
+    .find((msg) => msg.sender === "bot" && msg.text);
+
+  useEffect(() => {
+    setVideoStatus("idle");
+    setVideoUrl("");
+    setVideoError("");
+  }, [latestBotConclusion?.id]);
+
+  const handleGenerateVideo = async () => {
+    if (!latestBotConclusion) {
+      setVideoError("Ask a question and get a conclusion before generating video.");
+      return;
+    }
+
+    setVideoStatus("loading");
+    setVideoError("");
+    setVideoUrl("");
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/hackrx/generate_video`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: latestBotConclusion.text }),
+      });
+
+      if (!res.ok) {
+        let detail = `Video request failed with status ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch {}
+        throw new Error(detail);
+      }
+
+      const data = await res.json();
+      const url = data.video_url || data.url || data.output_url;
+
+      if (!url) {
+        throw new Error("No video URL returned by Veo.");
+      }
+
+      setVideoUrl(url);
+      setVideoStatus("success");
+    } catch (err) {
+      console.error(err);
+      setVideoStatus("error");
+      setVideoError(err.message || "Failed to generate video.");
     }
   };
 
@@ -701,6 +758,39 @@ function App() {
                         </svg>
                       </button>
                     </div>
+                  </div>
+
+                  <div className="video-panel">
+                    <div className="video-header">
+                      <div>
+                        <h3 className="video-title">Generate 8s Video</h3>
+                        <p className="video-subtitle">Turn the latest conclusion into a short clip via Veo 3.</p>
+                      </div>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={handleGenerateVideo}
+                        disabled={!latestBotConclusion || videoStatus === "loading"}
+                      >
+                        {videoStatus === "loading" ? "Generating..." : "Create Video"}
+                      </button>
+                    </div>
+
+                    {latestBotConclusion ? (
+                      <p className="video-context">Using conclusion: {latestBotConclusion.text}</p>
+                    ) : (
+                      <p className="video-placeholder">Ask a question to produce a conclusion for video generation.</p>
+                    )}
+
+                    {videoError && <div className="error-message video-error">{videoError}</div>}
+
+                    {videoStatus === "success" && videoUrl && (
+                      <div className="video-preview">
+                        <video className="video-player" src={videoUrl} controls></video>
+                        <a className="video-link" href={videoUrl} target="_blank" rel="noreferrer">
+                          Open video in new tab
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

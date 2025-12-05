@@ -59,21 +59,21 @@ SESSION_BLOCKS: dict[str, list[dict]] = {}
 
 app = FastAPI()
 
-# CORS config for frontend ↔ backend
+# 👇 allowed frontend origins
 origins = [
-    "http://localhost:5173",  # local dev
+    "http://localhost:5173",
+    "http://localhost:4173",
     "http://localhost:3000",
-    "https://core-production-f37e.up.railway.app",  # your Railway frontend
+    "https://core-docs.up.railway.app",  # your deployed frontend
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,       # or ["*"] if you want to open it fully
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ---------------------------------------------------------
 # Supabase helpers (cache)

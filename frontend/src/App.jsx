@@ -3,6 +3,54 @@ import "./App.css";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const getMainKeyword = (text = "", question = "") => {
+  const keywordMatchers = [
+    /\b\d+[\s-]*(?:day|month|year|week)s?\b/i,
+    /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\s+(?:day|month|year|week)s?\b/i,
+    /\b\d+%\b/i,
+    /\b\$?\d+(?:,\d{3})*(?:\.\d+)?\b/i,
+  ];
+
+  for (const pattern of keywordMatchers) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+
+  const questionKeywords = question
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((word) => word.length > 3);
+
+  questionKeywords.sort((a, b) => b.length - a.length);
+
+  for (const keyword of questionKeywords) {
+    const match = text.match(new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i"));
+    if (match) return match[0];
+  }
+
+  return null;
+};
+
+const renderMessageText = (message) => {
+  if (message.sender !== "bot") return message.text;
+
+  const keyword = getMainKeyword(message.text, message.question);
+  if (!keyword) return message.text;
+
+  const segments = message.text.split(new RegExp(`(${escapeRegExp(keyword)})`, "gi"));
+
+  return segments.map((segment, idx) => {
+    if (segment.toLowerCase() === keyword.toLowerCase()) {
+      return (
+        <strong key={`${message.id}-kw-${idx}`}>{segment}</strong>
+      );
+    }
+    return <span key={`${message.id}-seg-${idx}`}>{segment}</span>;
+  });
+};
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -218,6 +266,7 @@ function App() {
         text: data.answer || "No answer returned.",
         sender: "bot",
         references: data.references || [],
+        question: userText,
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -475,7 +524,7 @@ function App() {
                   {messages.map((msg) => (
                     <div key={msg.id} className={`message message-${msg.sender}`}>
                       <div className={`bubble bubble-${msg.sender}`}>
-                        <p className="message-text">{msg.text}</p>
+                        <p className="message-text">{renderMessageText(msg)}</p>
                         {msg.references?.length > 0 && (
                           <div className="references">
                             <p className="references-title">References</p>

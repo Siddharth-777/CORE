@@ -467,13 +467,22 @@ body {
 }
 
 .references li {
-  margin-bottom: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.references li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.bubble-user .references li {
+  border-top-color: rgba(255, 255, 255, 0.3);
 }
 
 .references a {
   color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 
 /* Typing Indicator */

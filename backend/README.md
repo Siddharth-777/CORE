@@ -35,6 +35,10 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
   SUPABASE_URL=<your-supabase-url>
   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-key>
   GROQ_API_KEY=<your-groq-api-key>
+FAL_API_KEY=<your-fal-api-key>
+# Optional overrides if your FAL endpoint or model name differ
+FAL_API_URL=https://fal.run/fal-ai/fast-svd
+FAL_MODEL=fal-ai/fast-svd
   ```
 - (Optional) Local Ollama server for `llm.py`
 

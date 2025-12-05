@@ -601,7 +601,6 @@ function App() {
                             <span className="preview-meta-item">Section {referencePreview.section}</span>
                           )}
                         </div>
-                        <p className="preview-reference-text">{referencePreview.text}</p>
                         {referencePreview.url && (
                           <a
                             className="preview-link"

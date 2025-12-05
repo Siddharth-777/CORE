@@ -71,6 +71,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("chat");
   const [currentPage, setCurrentPage] = useState("landing");
   const [referencePreview, setReferencePreview] = useState(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
 
   const hidePreviewTimeoutRef = useRef(null);
 
@@ -100,8 +101,18 @@ function App() {
       if (hidePreviewTimeoutRef.current) {
         clearTimeout(hidePreviewTimeoutRef.current);
       }
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
     };
-  }, []);
+  }, [pdfPreviewUrl]);
+
+  const resetPdfPreviewUrl = () => {
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+    }
+  };
 
   const validateFile = (file) => {
     if (file.type !== "application/pdf") {
@@ -122,6 +133,9 @@ function App() {
     setUploadError("");
 
     if (validateFile(file)) {
+      resetPdfPreviewUrl();
+      const objectUrl = URL.createObjectURL(file);
+      setPdfPreviewUrl(objectUrl);
       setUploadedFile(file);
       setIsProcessingStarted(false);
       setSessionId(null);
@@ -191,6 +205,7 @@ function App() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    resetPdfPreviewUrl();
   };
 
   const handleProcessFile = async () => {
@@ -287,11 +302,28 @@ function App() {
 
       const data = await res.json();
 
+      const mappedReferences = (data.references || []).map((ref) => {
+        const page =
+          ref.page ||
+          ref.pagenumber ||
+          ref.pageNumber ||
+          ref.Page ||
+          ref.page_num;
+        const pageFragment = page ? `#page=${page}` : "";
+        const previewUrl = ref.url || (pdfPreviewUrl ? `${pdfPreviewUrl}${pageFragment}` : null);
+
+        return {
+          ...ref,
+          page,
+          url: previewUrl,
+        };
+      });
+
       const botMessage = {
         id: Date.now() + 1,
         text: data.answer || "No answer returned.",
         sender: "bot",
-        references: data.references || [],
+        references: mappedReferences,
         question: userText,
       };
 
@@ -379,6 +411,7 @@ function App() {
     setDetectionPreview("");
     setExtractionPreview("");
     setActiveTab("chat");
+    resetPdfPreviewUrl();
   };
 
   const formatFileSize = (bytes) => {
@@ -560,6 +593,14 @@ function App() {
                     <>
                       <div className="reference-preview-header">
                         <p className="preview-label">PDF Preview</p>
+                        <div className="preview-meta">
+                          {referencePreview.page && (
+                            <span className="preview-meta-item">Page {referencePreview.page}</span>
+                          )}
+                          {referencePreview.section && (
+                            <span className="preview-meta-item">Section {referencePreview.section}</span>
+                          )}
+                        </div>
                         <p className="preview-reference-text">{referencePreview.text}</p>
                         {referencePreview.url && (
                           <a

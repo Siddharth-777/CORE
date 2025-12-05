@@ -453,6 +453,22 @@ body {
   line-height: 1.5;
 }
 
+.preview-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-meta-item {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: #fff;
+}
+
 .preview-link {
   font-family: var(--font-sans);
   font-size: 12px;

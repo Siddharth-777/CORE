@@ -400,6 +400,105 @@ body {
 }
 
 /* Chat */
+.chat-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.reference-preview-panel {
+  flex: 0 0 560px;
+  max-width: 640px;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.reference-preview-panel.visible {
+  box-shadow: inset -1px 0 0 var(--color-border);
+}
+
+.reference-preview-placeholder {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  margin: auto;
+  padding: 16px;
+  text-align: center;
+}
+
+
+.reference-preview-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
+}
+
+.preview-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-meta-item {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.preview-link {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+
+.reference-preview-frame {
+  border: 1px solid var(--color-border);
+  background-color: #fff;
+  flex: 1;
+  min-height: 720px;
+  height: clamp(720px, 78vh, 960px);
+  overflow: hidden;
+}
+
+.reference-iframe {
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+.reference-preview-empty {
+  padding: 16px;
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.chat-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -467,13 +566,22 @@ body {
 }
 
 .references li {
-  margin-bottom: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.references li:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.bubble-user .references li {
+  border-top-color: rgba(255, 255, 255, 0.3);
 }
 
 .references a {
   color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 
 /* Typing Indicator */
@@ -515,6 +623,80 @@ body {
   border-top: 1px solid var(--color-border);
   background-color: var(--color-background);
   flex-shrink: 0;
+}
+
+.video-panel {
+  border-top: 1px solid var(--color-border);
+  margin: 0 40px 24px;
+  padding-top: 20px;
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.video-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.video-subtitle {
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.video-context,
+.video-placeholder {
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 12px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+
+.video-placeholder {
+  color: var(--color-subtle);
+}
+
+.video-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.video-player {
+  width: 100%;
+  max-width: 720px;
+  border: 1px solid var(--color-border);
+  background: #000;
+}
+
+.video-link {
+  font-size: 14px;
+  color: var(--color-text);
+  text-decoration: none;
+  width: fit-content;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.video-link:hover {
+  text-decoration: underline;
+}
+
+.video-error {
+  text-align: left;
 }
 
 .input-container {
@@ -631,8 +813,16 @@ body {
     padding-right: 24px;
   }
 
+  .reference-preview-panel.visible {
+    flex-basis: 420px;
+  }
+
   .bubble {
     max-width: 80%;
+  }
+
+  .video-panel {
+    margin: 0 24px 20px;
   }
 }
 
@@ -671,6 +861,10 @@ body {
     padding: 24px;
   }
 
+  .reference-preview-panel {
+    display: none;
+  }
+
   .upload-center {
     padding: 24px 20px;
   }
@@ -681,6 +875,10 @@ body {
 
   .upload-subtitle {
     font-size: 15px;
+  }
+
+  .video-panel {
+    margin: 0 20px 20px;
   }
 
   .dropzone {

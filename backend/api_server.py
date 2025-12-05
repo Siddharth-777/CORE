@@ -10,6 +10,7 @@ from collections import defaultdict
 import re
 import asyncio
 import aiohttp
+from aiohttp import ClientError, ClientConnectorError
 import time
 import uuid
 import shutil
@@ -408,19 +409,39 @@ async def generate_video(req: GenerateVideoRequest):
         "Content-Type": "application/json",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(VEO_API_URL, json=payload, headers=headers) as resp:
-            body_text = await resp.text()
-            if resp.status >= 300:
-                raise HTTPException(
-                    status_code=resp.status,
-                    detail=f"Veo API error: {body_text}",
-                )
+    try:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30)
+        ) as session:
+            async with session.post(VEO_API_URL, json=payload, headers=headers) as resp:
+                body_text = await resp.text()
+                if resp.status >= 300:
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"Veo API error: {body_text}",
+                    )
 
-            try:
-                data = await resp.json()
-            except Exception:
-                raise HTTPException(status_code=500, detail="Invalid response from Veo API")
+                try:
+                    data = await resp.json()
+                except Exception:
+                    raise HTTPException(
+                        status_code=500, detail="Invalid response from Veo API"
+                    )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Timed out waiting for Veo API. Please try again later.",
+        )
+    except ClientConnectorError:
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to reach Veo API host. Check VEO_API_URL, network access, or DNS settings.",
+        )
+    except ClientError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Network error talking to Veo API: {exc}",
+        )
 
     video_url = (
         data.get("video_url")

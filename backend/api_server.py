@@ -44,6 +44,9 @@ load_dotenv(dotenv_path=".env", encoding="utf-8")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.1-8b-instant"
+FAL_API_KEY = os.getenv("FAL_API_KEY")
+FAL_API_URL = os.getenv("FAL_API_URL", "https://fal.run/fal-ai/fast-svd")
+FAL_MODEL = os.getenv("FAL_MODEL", "fal-ai/fast-svd")
 
 # In-memory store: session_id -> parsed blocks
 SESSION_BLOCKS: dict[str, list[dict]] = {}

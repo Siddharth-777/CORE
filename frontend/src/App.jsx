@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
@@ -68,6 +68,69 @@ const getMainKeyword = (text = "", question = "") => {
   return null;
 };
 
+const parseOutlinePreview = (previewText = "") => {
+  const lines = previewText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const parsed = lines
+    .map((line, index) => {
+      const annotationMatches = [...line.matchAll(/\[([^\]]+)\]/g)]
+        .map((match) => match[1].trim())
+        .filter(Boolean);
+
+      const withoutAnnotations = line.replace(/\[([^\]]+)\]/g, "").trim();
+      const normalizedText = withoutAnnotations.replace(/\s+/g, " ");
+
+      if (!normalizedText && annotationMatches.length === 0) return null;
+      if (/^null$/i.test(normalizedText)) return null;
+
+      const markerMatch = normalizedText.match(
+        /^(?<marker>(?:\d+(?:\.\d+)*)|(?:[ivxlcdm]+\.)|(?:[a-z]\.)|\([a-z0-9]+\)|[•\-–])\s*(?<rest>.*)$/i
+      );
+
+      const marker = markerMatch?.groups?.marker?.replace(/[•\-–]/, "")?.trim() || "";
+      const text = (markerMatch?.groups?.rest || normalizedText).trim();
+      if (!text && annotationMatches.length === 0) return null;
+
+      let depth = 0;
+      if (markerMatch) {
+        if (/^\d+(?:\.\d+)*$/.test(marker)) {
+          const parts = marker.split(".");
+          depth = Math.max(parts.length - 1, 0);
+        } else if (/^[ivxlcdm]+\.$/i.test(marker)) {
+          depth = 2;
+        } else {
+          depth = 1;
+        }
+      }
+
+      return {
+        id: `${index}-${line.slice(0, 20)}`,
+        text: text || annotationMatches.join(" "),
+        annotations: annotationMatches,
+        depth,
+        marker,
+      };
+    })
+    .filter(Boolean);
+
+  const deduped = [];
+  for (const item of parsed) {
+    const last = deduped[deduped.length - 1];
+    const signature = `${item.text}|${item.marker}|${item.annotations.join("|")}`;
+    const lastSignature = last
+      ? `${last.text}|${last.marker}|${last.annotations.join("|")}`
+      : null;
+    if (signature !== lastSignature) {
+      deduped.push(item);
+    }
+  }
+
+  return deduped;
+};
+
 const renderMessageText = (message) => {
   if (message.sender !== "bot") return message.text;
 
@@ -112,6 +175,8 @@ function App() {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
   const [videoStatus, setVideoStatus] = useState("idle");
   const [videoMessage, setVideoMessage] = useState("");
+
+  const parsedOutline = useMemo(() => parseOutlinePreview(detectionPreview), [detectionPreview]);
 
   const hidePreviewTimeoutRef = useRef(null);
 
@@ -435,7 +500,7 @@ function App() {
 
   const handleDetectPreview = () => {
     requestBackendPreview(
-      "List the main headings and subheadings from this PDF with their nesting.",
+      "List the main headings and subheadings from this PDF with their nesting, and include any PDF annotations or bracketed notes alongside the related sections when available.",
       setDetectionPreview,
       setDetectError,
       setDetectLoading
@@ -814,18 +879,37 @@ function App() {
               </div>
               
               <div className="preview-content-large">
-                {detectionPreview ? (
-                  <div className="preview-text">
-                    {detectionPreview.split("\n").map((line, idx) => (
-                      <div key={idx} className="preview-line">
-                        {line}
+                {detectionPreview && parsedOutline.length > 0 ? (
+                  <div className="outline-list" aria-label="Document outline preview">
+                    {parsedOutline.map((item) => (
+                      <div
+                        key={item.id}
+                        className="outline-item"
+                        style={{ marginLeft: `${item.depth * 18}px` }}
+                      >
+                        <div className="outline-line">
+                          <span className="outline-bullet" aria-hidden></span>
+                          <div className="outline-content">
+                            {item.marker && <span className="outline-marker">{item.marker}</span>}
+                            <div className="outline-text">{item.text}</div>
+                          </div>
+                        </div>
+                        {item.annotations.length > 0 && (
+                          <div className="outline-annotations" aria-label="PDF annotations">
+                            {item.annotations.map((annotation, idx) => (
+                              <span key={`${item.id}-ann-${idx}`} className="annotation-chip">
+                                {annotation}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="preview-empty">
                     <p className="placeholder-text">
-                      {sessionId 
+                      {sessionId
                         ? "Click 'Load Outline' to view the document structure"
                         : "Process a document to view its hierarchical structure"
                       }

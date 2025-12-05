@@ -70,6 +70,9 @@ function App() {
   const [extractError, setExtractError] = useState("");
   const [activeTab, setActiveTab] = useState("chat");
   const [currentPage, setCurrentPage] = useState("landing");
+  const [referencePreview, setReferencePreview] = useState(null);
+
+  const hidePreviewTimeoutRef = useRef(null);
 
   const fileInputRef = useRef(null);
   const chatMessagesRef = useRef(null);
@@ -91,6 +94,14 @@ function App() {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (hidePreviewTimeoutRef.current) {
+        clearTimeout(hidePreviewTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const validateFile = (file) => {
     if (file.type !== "application/pdf") {
@@ -152,6 +163,21 @@ function App() {
 
   const handleChooseFileClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleReferenceHover = (reference) => {
+    if (hidePreviewTimeoutRef.current) {
+      clearTimeout(hidePreviewTimeoutRef.current);
+      hidePreviewTimeoutRef.current = null;
+    }
+    setReferencePreview(reference);
+  };
+
+  const handleReferenceLeave = () => {
+    hidePreviewTimeoutRef.current = setTimeout(() => {
+      setReferencePreview(null);
+      hidePreviewTimeoutRef.current = null;
+    }, 120);
   };
 
   const handleRemoveFile = () => {
@@ -519,72 +545,125 @@ function App() {
                 )}
               </div>
             ) : (
-              <>
-                <div className="chat-messages" ref={chatMessagesRef}>
-                  {messages.map((msg) => (
-                    <div key={msg.id} className={`message message-${msg.sender}`}>
-                      <div className={`bubble bubble-${msg.sender}`}>
-                        <p className="message-text">{renderMessageText(msg)}</p>
-                        {msg.references?.length > 0 && (
-                          <div className="references">
-                            <p className="references-title">References</p>
-                            <ul>
-                              {msg.references.map((ref, idx) => (
-                                <li key={idx}>
-                                  <a href={ref.url} target="_blank" rel="noreferrer">
-                                    {ref.text}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
+              <div className="chat-layout">
+                <div
+                  className={`reference-preview-panel ${referencePreview ? "visible" : ""}`}
+                  onMouseEnter={() => {
+                    if (hidePreviewTimeoutRef.current) {
+                      clearTimeout(hidePreviewTimeoutRef.current);
+                      hidePreviewTimeoutRef.current = null;
+                    }
+                  }}
+                  onMouseLeave={handleReferenceLeave}
+                >
+                  {referencePreview ? (
+                    <>
+                      <div className="reference-preview-header">
+                        <p className="preview-label">PDF Preview</p>
+                        <p className="preview-reference-text">{referencePreview.text}</p>
+                        {referencePreview.url && (
+                          <a
+                            className="preview-link"
+                            href={referencePreview.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open source PDF
+                          </a>
+                        )}
+                      </div>
+                      <div className="reference-preview-frame">
+                        {referencePreview.url ? (
+                          <iframe
+                            src={referencePreview.url}
+                            title="PDF preview"
+                            className="reference-iframe"
+                          />
+                        ) : (
+                          <div className="reference-preview-empty">
+                            No preview available for this reference.
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-
-                  {isAsking && (
-                    <div className="message message-bot">
-                      <div className="bubble bubble-bot">
-                        <div className="typing-indicator">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
-                      </div>
+                    </>
+                  ) : (
+                    <div className="reference-preview-placeholder">
+                      Hover over a reference to see the PDF context.
                     </div>
                   )}
                 </div>
 
-                {chatError && <div className="error-message error-chat">{chatError}</div>}
+                <div className="chat-column">
+                  <div className="chat-messages" ref={chatMessagesRef}>
+                    {messages.map((msg) => (
+                      <div key={msg.id} className={`message message-${msg.sender}`}>
+                        <div className={`bubble bubble-${msg.sender}`}>
+                          <p className="message-text">{renderMessageText(msg)}</p>
+                          {msg.references?.length > 0 && (
+                            <div className="references">
+                              <p className="references-title">References</p>
+                              <ul>
+                                {msg.references.map((ref, idx) => (
+                                  <li
+                                    key={idx}
+                                    onMouseEnter={() => handleReferenceHover(ref)}
+                                    onMouseLeave={handleReferenceLeave}
+                                  >
+                                    <a href={ref.url} target="_blank" rel="noreferrer">
+                                      {ref.text}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
 
-                <div className="chat-input-wrapper">
-                  <div className="input-container">
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Ask about document structure, sections, or content..."
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
-                          handleSendMessage();
-                        }
-                      }}
-                      disabled={!sessionId || isAsking}
-                    />
-                    <button
-                      className="btn btn-primary btn-icon"
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || !sessionId || isAsking}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
+                    {isAsking && (
+                      <div className="message message-bot">
+                        <div className="bubble bubble-bot">
+                          <div className="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {chatError && <div className="error-message error-chat">{chatError}</div>}
+
+                  <div className="chat-input-wrapper">
+                    <div className="input-container">
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Ask about document structure, sections, or content..."
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
+                            handleSendMessage();
+                          }
+                        }}
+                        disabled={!sessionId || isAsking}
+                      />
+                      <button
+                        className="btn btn-primary btn-icon"
+                        onClick={handleSendMessage}
+                        disabled={!inputMessage.trim() || !sessionId || isAsking}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}

@@ -5,11 +5,6 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-function App() {
-  console.log("BACKEND_URL in this build:", BACKEND_URL);
-  ...
-}
-
 
 const metricsOverview = [
   { label: "Model", value: "Document QA Transformer v2" },
@@ -92,6 +87,9 @@ const renderMessageText = (message) => {
 };
 
 function App() {
+  console.log("BACKEND_URL in this build:", BACKEND_URL);
+
+  
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);

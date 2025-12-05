@@ -49,7 +49,7 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    ```
-3. Install dependencies:
+ 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
@@ -61,6 +61,9 @@ CORE is a Python-based system for processing and analyzing PDF documents, with a
    ```bash
    ollama run llama3
    ```
+
+### Video generation placeholder
+- The `/hackrx/generate_video` endpoint currently returns a `501` placeholder response with "Video generation coming soon." and does not call any external service.
 
 ## Usage
 ### API Server

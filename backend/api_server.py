@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from collections import defaultdict
 import re
 import asyncio
-import aiohttp
 import time
 import uuid
 import shutil
@@ -138,6 +137,10 @@ class HackRxRequest(BaseModel):
 class ChatAskRequest(BaseModel):
     session_id: str
     question: str
+
+
+class GenerateVideoRequest(BaseModel):
+    prompt: str
 
 
 # ---------------------------------------------------------
@@ -383,6 +386,14 @@ async def ask_question(req: ChatAskRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/hackrx/generate_video")
+async def generate_video(req: GenerateVideoRequest):
+    raise HTTPException(
+        status_code=501,
+        detail="Video generation coming soon. This endpoint is a placeholder.",
+    )
 
 
 # ---------------------------------------------------------

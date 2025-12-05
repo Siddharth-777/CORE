@@ -3,6 +3,88 @@ import "./App.css";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const metricsOverview = [
+  { label: "Model", value: "Document QA Transformer v2 (placeholder)" },
+  { label: "Latency", value: "~820ms avg response" },
+  { label: "Accuracy", value: "93% grounded answers" },
+  { label: "Throughput", value: "120 req/min sustained" },
+];
+
+const metricBreakdowns = [
+  {
+    title: "Answer Quality",
+    items: [
+      { label: "Faithfulness", value: "95%" },
+      { label: "Conciseness", value: "91%" },
+      { label: "Citation Coverage", value: "98%" },
+    ],
+  },
+  {
+    title: "Reliability",
+    items: [
+      { label: "Uptime", value: "99.5%" },
+      { label: "Timeout Rate", value: "0.6%" },
+      { label: "Error Budget", value: "Green" },
+    ],
+  },
+  {
+    title: "Efficiency",
+    items: [
+      { label: "Tokens / Answer", value: "380 avg" },
+      { label: "GPU Utilization", value: "72%" },
+      { label: "Cost / 1k Q", value: "$4.20" },
+    ],
+  },
+];
+
+const getMainKeyword = (text = "", question = "") => {
+  const keywordMatchers = [
+    /\b\d+[\s-]*(?:day|month|year|week)s?\b/i,
+    /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\s+(?:day|month|year|week)s?\b/i,
+    /\b\d+%\b/i,
+    /\b\$?\d+(?:,\d{3})*(?:\.\d+)?\b/i,
+  ];
+
+  for (const pattern of keywordMatchers) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+
+  const questionKeywords = question
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((word) => word.length > 3);
+
+  questionKeywords.sort((a, b) => b.length - a.length);
+
+  for (const keyword of questionKeywords) {
+    const match = text.match(new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i"));
+    if (match) return match[0];
+  }
+
+  return null;
+};
+
+const renderMessageText = (message) => {
+  if (message.sender !== "bot") return message.text;
+
+  const keyword = getMainKeyword(message.text, message.question);
+  if (!keyword) return message.text;
+
+  const segments = message.text.split(new RegExp(`(${escapeRegExp(keyword)})`, "gi"));
+
+  return segments.map((segment, idx) => {
+    if (segment.toLowerCase() === keyword.toLowerCase()) {
+      return (
+        <strong key={`${message.id}-kw-${idx}`}>{segment}</strong>
+      );
+    }
+    return <span key={`${message.id}-seg-${idx}`}>{segment}</span>;
+  });
+};
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -22,6 +104,12 @@ function App() {
   const [extractError, setExtractError] = useState("");
   const [activeTab, setActiveTab] = useState("chat");
   const [currentPage, setCurrentPage] = useState("landing");
+  const [referencePreview, setReferencePreview] = useState(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [videoStatus, setVideoStatus] = useState("idle");
+  const [videoMessage, setVideoMessage] = useState("");
+
+  const hidePreviewTimeoutRef = useRef(null);
 
   const fileInputRef = useRef(null);
   const chatMessagesRef = useRef(null);
@@ -44,6 +132,24 @@ function App() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      if (hidePreviewTimeoutRef.current) {
+        clearTimeout(hidePreviewTimeoutRef.current);
+      }
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
+    };
+  }, [pdfPreviewUrl]);
+
+  const resetPdfPreviewUrl = () => {
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+    }
+  };
+
   const validateFile = (file) => {
     if (file.type !== "application/pdf") {
       setUploadError("Please upload a PDF file only.");
@@ -63,6 +169,9 @@ function App() {
     setUploadError("");
 
     if (validateFile(file)) {
+      resetPdfPreviewUrl();
+      const objectUrl = URL.createObjectURL(file);
+      setPdfPreviewUrl(objectUrl);
       setUploadedFile(file);
       setIsProcessingStarted(false);
       setSessionId(null);
@@ -106,6 +215,21 @@ function App() {
     fileInputRef.current?.click();
   };
 
+  const handleReferenceHover = (reference) => {
+    if (hidePreviewTimeoutRef.current) {
+      clearTimeout(hidePreviewTimeoutRef.current);
+      hidePreviewTimeoutRef.current = null;
+    }
+    setReferencePreview(reference);
+  };
+
+  const handleReferenceLeave = () => {
+    hidePreviewTimeoutRef.current = setTimeout(() => {
+      setReferencePreview(null);
+      hidePreviewTimeoutRef.current = null;
+    }, 120);
+  };
+
   const handleRemoveFile = () => {
     setUploadedFile(null);
     setUploadError("");
@@ -117,6 +241,7 @@ function App() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    resetPdfPreviewUrl();
   };
 
   const handleProcessFile = async () => {
@@ -213,11 +338,29 @@ function App() {
 
       const data = await res.json();
 
+      const mappedReferences = (data.references || []).map((ref) => {
+        const page =
+          ref.page ||
+          ref.pagenumber ||
+          ref.pageNumber ||
+          ref.Page ||
+          ref.page_num;
+        const pageFragment = page ? `#page=${page}` : "";
+        const previewUrl = ref.url || (pdfPreviewUrl ? `${pdfPreviewUrl}${pageFragment}` : null);
+
+        return {
+          ...ref,
+          page,
+          url: previewUrl,
+        };
+      });
+
       const botMessage = {
         id: Date.now() + 1,
         text: data.answer || "No answer returned.",
         sender: "bot",
-        references: data.references || [],
+        references: mappedReferences,
+        question: userText,
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -227,6 +370,20 @@ function App() {
     } finally {
       setIsAsking(false);
     }
+  };
+
+  const latestBotConclusion = [...messages]
+    .reverse()
+    .find((msg) => msg.sender === "bot" && msg.text);
+
+  useEffect(() => {
+    setVideoStatus("idle");
+    setVideoMessage("");
+  }, [latestBotConclusion?.id]);
+
+  const handleGenerateVideo = async () => {
+    setVideoStatus("comingSoon");
+    setVideoMessage("Coming soon: video generation will be added in a future update.");
   };
 
   const requestBackendPreview = async (
@@ -304,6 +461,7 @@ function App() {
     setDetectionPreview("");
     setExtractionPreview("");
     setActiveTab("chat");
+    resetPdfPreviewUrl();
   };
 
   const formatFileSize = (bytes) => {
@@ -371,23 +529,29 @@ function App() {
             <span className="logo-text">CORE</span>
           </div>
           <nav className="tabs">
-            <button 
+            <button
               className={activeTab === "chat" ? "tab tab-active" : "tab"}
               onClick={() => setActiveTab("chat")}
             >
               Chatbot
             </button>
-            <button 
+            <button
               className={activeTab === "outline" ? "tab tab-active" : "tab"}
               onClick={() => setActiveTab("outline")}
             >
               Document Outline
             </button>
-            <button 
+            <button
               className={activeTab === "content" ? "tab tab-active" : "tab"}
               onClick={() => setActiveTab("content")}
             >
               Content Summary
+            </button>
+            <button
+              className={activeTab === "metrics" ? "tab tab-active" : "tab"}
+              onClick={() => setActiveTab("metrics")}
+            >
+              Metrics
             </button>
           </nav>
         </div>
@@ -470,72 +634,158 @@ function App() {
                 )}
               </div>
             ) : (
-              <>
-                <div className="chat-messages" ref={chatMessagesRef}>
-                  {messages.map((msg) => (
-                    <div key={msg.id} className={`message message-${msg.sender}`}>
-                      <div className={`bubble bubble-${msg.sender}`}>
-                        <p className="message-text">{msg.text}</p>
-                        {msg.references?.length > 0 && (
-                          <div className="references">
-                            <p className="references-title">References</p>
-                            <ul>
-                              {msg.references.map((ref, idx) => (
-                                <li key={idx}>
-                                  <a href={ref.url} target="_blank" rel="noreferrer">
-                                    {ref.text}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
+              <div className="chat-layout">
+                <div
+                  className={`reference-preview-panel ${referencePreview ? "visible" : ""}`}
+                  onMouseEnter={() => {
+                    if (hidePreviewTimeoutRef.current) {
+                      clearTimeout(hidePreviewTimeoutRef.current);
+                      hidePreviewTimeoutRef.current = null;
+                    }
+                  }}
+                  onMouseLeave={handleReferenceLeave}
+                >
+                  {referencePreview ? (
+                    <>
+                      <div className="reference-preview-header">
+                        <p className="preview-label">PDF Preview</p>
+                        <div className="preview-meta">
+                          {referencePreview.page && (
+                            <span className="preview-meta-item">Page {referencePreview.page}</span>
+                          )}
+                          {referencePreview.section && (
+                            <span className="preview-meta-item">Section {referencePreview.section}</span>
+                          )}
+                        </div>
+                        {referencePreview.url && (
+                          <a
+                            className="preview-link"
+                            href={referencePreview.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open source PDF
+                          </a>
+                        )}
+                      </div>
+                      <div className="reference-preview-frame">
+                        {referencePreview.url ? (
+                          <iframe
+                            src={referencePreview.url}
+                            title="PDF preview"
+                            className="reference-iframe"
+                          />
+                        ) : (
+                          <div className="reference-preview-empty">
+                            No preview available for this reference.
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-
-                  {isAsking && (
-                    <div className="message message-bot">
-                      <div className="bubble bubble-bot">
-                        <div className="typing-indicator">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
-                      </div>
+                    </>
+                  ) : (
+                    <div className="reference-preview-placeholder">
+                      Hover over a reference to see the PDF context.
                     </div>
                   )}
                 </div>
 
-                {chatError && <div className="error-message error-chat">{chatError}</div>}
+                <div className="chat-column">
+                  <div className="chat-messages" ref={chatMessagesRef}>
+                    {messages.map((msg) => (
+                      <div key={msg.id} className={`message message-${msg.sender}`}>
+                        <div className={`bubble bubble-${msg.sender}`}>
+                          <p className="message-text">{renderMessageText(msg)}</p>
+                          {msg.references?.length > 0 && (
+                            <div className="references">
+                              <p className="references-title">References</p>
+                              <ul>
+                                {msg.references.map((ref, idx) => (
+                                  <li
+                                    key={idx}
+                                    onMouseEnter={() => handleReferenceHover(ref)}
+                                    onMouseLeave={handleReferenceLeave}
+                                  >
+                                    <a href={ref.url} target="_blank" rel="noreferrer">
+                                      {ref.text}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
 
-                <div className="chat-input-wrapper">
-                  <div className="input-container">
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Ask about document structure, sections, or content..."
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
-                          handleSendMessage();
-                        }
-                      }}
-                      disabled={!sessionId || isAsking}
-                    />
-                    <button
-                      className="btn btn-primary btn-icon"
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || !sessionId || isAsking}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
+                    {isAsking && (
+                      <div className="message message-bot">
+                        <div className="bubble bubble-bot">
+                          <div className="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {chatError && <div className="error-message error-chat">{chatError}</div>}
+
+                  <div className="chat-input-wrapper">
+                    <div className="input-container">
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Ask about document structure, sections, or content..."
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && inputMessage.trim() && !isAsking) {
+                            handleSendMessage();
+                          }
+                        }}
+                        disabled={!sessionId || isAsking}
+                      />
+                      <button
+                        className="btn btn-primary btn-icon"
+                        onClick={handleSendMessage}
+                        disabled={!inputMessage.trim() || !sessionId || isAsking}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="video-panel">
+                    <div className="video-header">
+                      <div>
+                        <h3 className="video-title">Generate 8s Video</h3>
+                        <p className="video-subtitle">Video generation is coming soon; this section is currently a placeholder.</p>
+                      </div>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={handleGenerateVideo}
+                        disabled={videoStatus === "comingSoon"}
+                      >
+                        {videoStatus === "comingSoon" ? "Coming Soon" : "Create Video"}
+                      </button>
+                    </div>
+
+                    {latestBotConclusion ? (
+                      <p className="video-context">Latest conclusion: {latestBotConclusion.text}</p>
+                    ) : (
+                      <p className="video-placeholder">Ask a question to see the latest conclusion here.</p>
+                    )}
+
+                    {videoMessage && (
+                      <div className="video-placeholder">{videoMessage}</div>
+                    )}
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -626,6 +876,87 @@ function App() {
               </div>
               
               {extractError && <div className="error-message">{extractError}</div>}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "metrics" && (
+          <div className="tab-content">
+            <div className="metrics-layout">
+              <div className="metrics-hero">
+                <div>
+                  <p className="eyebrow">Model Insights</p>
+                  <h2 className="metrics-title">Performance & Efficiency</h2>
+                  <p className="metrics-subtitle">
+                    Placeholder overview of model health, answer quality, and operational efficiency. Replace with live
+                    telemetry when available.
+                  </p>
+                </div>
+                <div className="metrics-hero-pill">Updated daily · Synthetic data</div>
+              </div>
+
+              <div className="metrics-overview">
+                {metricsOverview.map((item) => (
+                  <div key={item.label} className="metric-card">
+                    <p className="metric-label">{item.label}</p>
+                    <p className="metric-value">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="metrics-panels">
+                <div className="metric-panel">
+                  <div className="metric-panel-header">
+                    <div>
+                      <p className="eyebrow">Quality Trend</p>
+                      <h3 className="metric-panel-title">Grounded Accuracy</h3>
+                    </div>
+                    <span className="metric-chip">Placeholder</span>
+                  </div>
+                  <div className="metric-chart">
+                    <div className="chart-bar" style={{ width: "82%" }} />
+                    <div className="chart-bar" style={{ width: "76%" }} />
+                    <div className="chart-bar" style={{ width: "88%" }} />
+                    <div className="chart-bar" style={{ width: "91%" }} />
+                    <div className="chart-bar" style={{ width: "93%" }} />
+                  </div>
+                  <div className="metric-chart-legend">
+                    <span className="legend-dot legend-primary" />Week over week accuracy (synthetic)
+                  </div>
+                </div>
+
+                <div className="metric-panel">
+                  <div className="metric-panel-header">
+                    <div>
+                      <p className="eyebrow">Operations</p>
+                      <h3 className="metric-panel-title">Stability Snapshot</h3>
+                    </div>
+                    <span className="metric-chip metric-chip-success">Healthy</span>
+                  </div>
+                  <div className="metric-health-grid">
+                    {metricBreakdowns.map((group) => (
+                      <div key={group.title} className="metric-breakdown">
+                        <p className="metric-breakdown-title">{group.title}</p>
+                        <div className="metric-breakdown-items">
+                          {group.items.map((entry) => (
+                            <div key={entry.label} className="metric-breakdown-item">
+                              <span className="metric-breakdown-label">{entry.label}</span>
+                              <span className="metric-breakdown-value">{entry.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="metrics-footnote">
+                <p>
+                  These metrics are illustrative placeholders to showcase the upcoming monitoring experience. Integrate
+                  real-time model telemetry, accuracy dashboards, and cost controls once connected to production systems.
+                </p>
+              </div>
             </div>
           </div>
         )}

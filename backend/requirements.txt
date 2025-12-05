@@ -3,7 +3,6 @@ uvicorn==0.32.0
 requests==2.32.3
 pymupdf==1.24.14
 nltk==3.9.1
-spacy==3.8.2
 python-dotenv==1.0.1
 supabase==2.9.1
 numpy==2.1.3

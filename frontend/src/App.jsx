@@ -5,6 +5,40 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const metricsOverview = [
+  { label: "Model", value: "Document QA Transformer v2 (placeholder)" },
+  { label: "Latency", value: "~820ms avg response" },
+  { label: "Accuracy", value: "93% grounded answers" },
+  { label: "Throughput", value: "120 req/min sustained" },
+];
+
+const metricBreakdowns = [
+  {
+    title: "Answer Quality",
+    items: [
+      { label: "Faithfulness", value: "95%" },
+      { label: "Conciseness", value: "91%" },
+      { label: "Citation Coverage", value: "98%" },
+    ],
+  },
+  {
+    title: "Reliability",
+    items: [
+      { label: "Uptime", value: "99.5%" },
+      { label: "Timeout Rate", value: "0.6%" },
+      { label: "Error Budget", value: "Green" },
+    ],
+  },
+  {
+    title: "Efficiency",
+    items: [
+      { label: "Tokens / Answer", value: "380 avg" },
+      { label: "GPU Utilization", value: "72%" },
+      { label: "Cost / 1k Q", value: "$4.20" },
+    ],
+  },
+];
+
 const getMainKeyword = (text = "", question = "") => {
   const keywordMatchers = [
     /\b\d+[\s-]*(?:day|month|year|week)s?\b/i,
@@ -495,23 +529,29 @@ function App() {
             <span className="logo-text">CORE</span>
           </div>
           <nav className="tabs">
-            <button 
+            <button
               className={activeTab === "chat" ? "tab tab-active" : "tab"}
               onClick={() => setActiveTab("chat")}
             >
               Chatbot
             </button>
-            <button 
+            <button
               className={activeTab === "outline" ? "tab tab-active" : "tab"}
               onClick={() => setActiveTab("outline")}
             >
               Document Outline
             </button>
-            <button 
+            <button
               className={activeTab === "content" ? "tab tab-active" : "tab"}
               onClick={() => setActiveTab("content")}
             >
               Content Summary
+            </button>
+            <button
+              className={activeTab === "metrics" ? "tab tab-active" : "tab"}
+              onClick={() => setActiveTab("metrics")}
+            >
+              Metrics
             </button>
           </nav>
         </div>
@@ -836,6 +876,87 @@ function App() {
               </div>
               
               {extractError && <div className="error-message">{extractError}</div>}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "metrics" && (
+          <div className="tab-content">
+            <div className="metrics-layout">
+              <div className="metrics-hero">
+                <div>
+                  <p className="eyebrow">Model Insights</p>
+                  <h2 className="metrics-title">Performance & Efficiency</h2>
+                  <p className="metrics-subtitle">
+                    Placeholder overview of model health, answer quality, and operational efficiency. Replace with live
+                    telemetry when available.
+                  </p>
+                </div>
+                <div className="metrics-hero-pill">Updated daily · Synthetic data</div>
+              </div>
+
+              <div className="metrics-overview">
+                {metricsOverview.map((item) => (
+                  <div key={item.label} className="metric-card">
+                    <p className="metric-label">{item.label}</p>
+                    <p className="metric-value">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="metrics-panels">
+                <div className="metric-panel">
+                  <div className="metric-panel-header">
+                    <div>
+                      <p className="eyebrow">Quality Trend</p>
+                      <h3 className="metric-panel-title">Grounded Accuracy</h3>
+                    </div>
+                    <span className="metric-chip">Placeholder</span>
+                  </div>
+                  <div className="metric-chart">
+                    <div className="chart-bar" style={{ width: "82%" }} />
+                    <div className="chart-bar" style={{ width: "76%" }} />
+                    <div className="chart-bar" style={{ width: "88%" }} />
+                    <div className="chart-bar" style={{ width: "91%" }} />
+                    <div className="chart-bar" style={{ width: "93%" }} />
+                  </div>
+                  <div className="metric-chart-legend">
+                    <span className="legend-dot legend-primary" />Week over week accuracy (synthetic)
+                  </div>
+                </div>
+
+                <div className="metric-panel">
+                  <div className="metric-panel-header">
+                    <div>
+                      <p className="eyebrow">Operations</p>
+                      <h3 className="metric-panel-title">Stability Snapshot</h3>
+                    </div>
+                    <span className="metric-chip metric-chip-success">Healthy</span>
+                  </div>
+                  <div className="metric-health-grid">
+                    {metricBreakdowns.map((group) => (
+                      <div key={group.title} className="metric-breakdown">
+                        <p className="metric-breakdown-title">{group.title}</p>
+                        <div className="metric-breakdown-items">
+                          {group.items.map((entry) => (
+                            <div key={entry.label} className="metric-breakdown-item">
+                              <span className="metric-breakdown-label">{entry.label}</span>
+                              <span className="metric-breakdown-value">{entry.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="metrics-footnote">
+                <p>
+                  These metrics are illustrative placeholders to showcase the upcoming monitoring experience. Integrate
+                  real-time model telemetry, accuracy dashboards, and cost controls once connected to production systems.
+                </p>
+              </div>
             </div>
           </div>
         )}
